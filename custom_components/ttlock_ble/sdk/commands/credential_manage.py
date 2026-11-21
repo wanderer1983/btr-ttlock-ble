@@ -30,6 +30,11 @@ if TYPE_CHECKING:
     import datetime as dt
 
 FINGERPRINT_NUMBER_LENGTH = 6
+# The FAILED push a lock sends when it leaves add mode because nothing was
+# presented. Observed on hardware (a P3 padlock, firmware 6.4.37): about 8 s
+# after ENTER_ADD_MODE with nobody at the sensor, the lock pushed exactly
+# `06 00 e4`. Not in ttlock-sdk-js, which leaves the code unnamed.
+ENROLLMENT_IDLE_TIMEOUT = 0xE4
 _CARD_ID_LENGTHS = frozenset({4, 8})
 _UNUSED_CARD_TAIL = b"\xff\xff\xff\xff"
 _ENROLLMENT_HEADER_LENGTH = 3
@@ -103,6 +108,14 @@ def payload_fingerprint_modify(
     """`[MODIFY][number:6][start:5][end:5]` - 17 bytes, changes when a fingerprint is valid."""
     _check_fingerprint_number(number)
     return bytes([CredentialOperate.MODIFY]) + number + _validity(start, end)
+
+
+def enrollment_failure_code(plaintext: bytes) -> int | None:
+    """Return the error code of a FAILED enrollment reply, or `None` when it is not one."""
+    _echo, status, data = parse_response_status(plaintext)
+    if status == RESPONSE_SUCCESS:
+        return None
+    return data[0] if data else -1
 
 
 def parse_enrollment_response(plaintext: bytes) -> tuple[int, bytes]:

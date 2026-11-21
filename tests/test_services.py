@@ -21,7 +21,10 @@ from custom_components.ttlock_ble.sdk import (
     PasscodeEntry,
     TTLockError,
 )
-from custom_components.ttlock_ble.services import EVENT_ENROLLMENT
+from custom_components.ttlock_ble.services import (
+    ENROLL_IDLE_RETRIES,
+    EVENT_ENROLLMENT,
+)
 
 _FP_RAW = bytes([0x00, 0x00, 0x00, 0x2A, 0x00, 0x01])
 _FP_NUMBER = int.from_bytes(_FP_RAW, "big")
@@ -276,7 +279,8 @@ class TestFingerprints:
         events = []
         hass.bus.async_listen(EVENT_ENROLLMENT, lambda e: events.append(e.data))
 
-        async def _enroll(*, start_date, end_date, on_progress):
+        async def _enroll(*, start_date, end_date, on_progress, idle_retries):
+            assert idle_retries == ENROLL_IDLE_RETRIES
             on_progress(EnrollmentStatus.ENTER_ADD_MODE)
             on_progress(EnrollmentStatus.FR_PROGRESS)
             on_progress(EnrollmentStatus.FR_PROGRESS)

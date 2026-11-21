@@ -31,9 +31,11 @@ from .control import (
     payload_unlock,
 )
 from .credential_manage import (
+    ENROLLMENT_IDLE_TIMEOUT,
     FINGERPRINT_NUMBER_LENGTH,
     card_id_from_enrollment,
     encode_date5,
+    enrollment_failure_code,
     fingerprint_number_from_enrollment,
     parse_enrollment_response,
     payload_card_delete,
@@ -135,6 +137,7 @@ __all__ = [
     "CMD_TIME_CALIBRATE",
     "CMD_UNLOCK",
     "END_DATE_SENTINEL",
+    "ENROLLMENT_IDLE_TIMEOUT",
     "FINGERPRINT_NUMBER_LENGTH",
     "LOCKED",
     "RESPONSE_FAILED",
@@ -144,6 +147,7 @@ __all__ = [
     "VENDOR",
     "card_id_from_enrollment",
     "encode_date5",
+    "enrollment_failure_code",
     "fingerprint_number_from_enrollment",
     "parse_auto_lock_limits_response",
     "parse_auto_lock_response",

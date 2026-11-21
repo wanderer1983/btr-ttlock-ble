@@ -71,6 +71,12 @@ ATTR_FINGERPRINT = "fingerprint"
 
 EVENT_ENROLLMENT = f"{DOMAIN}_enrollment"
 
+# A lock leaves add mode silently after a few seconds with nothing presented
+# (about 8 s on a P3 padlock), and the session may land a while after the
+# person at the lock started. Re-opening it this many times keeps the lock
+# waiting for roughly a minute; each window fires another `waiting` event.
+ENROLL_IDLE_RETRIES = 7
+
 # The lock's own wire format for passcode windows: YYMMDDHHmm, lock-local.
 _PASSCODE_TIME_FORMAT = "%y%m%d%H%M"
 _OPEN_ENDED_PASSCODE = "9912311400"
@@ -432,7 +438,12 @@ async def _async_add_card(call: ServiceCall) -> ServiceResponse:
     report = _progress_reporter(call, target, TtlockBleCredentialType.CARD)
 
     async def _add(client: TTLockClient) -> bytes:
-        return await client.add_card(start_date=start, end_date=end, on_progress=report)
+        return await client.add_card(
+            start_date=start,
+            end_date=end,
+            on_progress=report,
+            idle_retries=ENROLL_IDLE_RETRIES,
+        )
 
     card_id = await _async_enroll(
         call, target, TtlockBleCredentialType.CARD, SERVICE_ADD_CARD, _add
@@ -483,7 +494,10 @@ async def _async_add_fingerprint(call: ServiceCall) -> ServiceResponse:
 
     async def _add(client: TTLockClient) -> bytes:
         return await client.add_fingerprint(
-            start_date=start, end_date=end, on_progress=report
+            start_date=start,
+            end_date=end,
+            on_progress=report,
+            idle_retries=ENROLL_IDLE_RETRIES,
         )
 
     raw = await _async_enroll(

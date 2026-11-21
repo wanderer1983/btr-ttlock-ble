@@ -669,6 +669,7 @@ class TTLockClient:
         end_date: dt.datetime | None = None,
         on_progress: EnrollmentListener | None = None,
         step_timeout: float = DEFAULT_ENROLL_STEP_TIMEOUT,
+        idle_retries: int = 0,
     ) -> bytes:
         """Put the lock into card-enroll mode, wait for a card, return its `card_id`.
 
@@ -680,6 +681,9 @@ class TTLockClient:
         with a separate MODIFY after the card is added, the way
         ttlock-sdk-js does it.
 
+        `idle_retries` re-opens add mode that many times when the lock
+        leaves it because nothing was presented - see `add_fingerprint`.
+
         Ported from ttlock-sdk-js; not yet confirmed on a physical lock.
         """
         async with self._command_lock:
@@ -689,6 +693,7 @@ class TTLockClient:
                 on_progress,
                 step_timeout,
                 "add_card",
+                idle_retries=idle_retries,
             )
             if start_date is not None or end_date is not None:
                 await self._credential_exchange(
@@ -743,6 +748,7 @@ class TTLockClient:
         end_date: dt.datetime | None = None,
         on_progress: EnrollmentListener | None = None,
         step_timeout: float = DEFAULT_ENROLL_STEP_TIMEOUT,
+        idle_retries: int = 0,
     ) -> bytes:
         """Enroll a fingerprint and return its 6-byte number (see `FingerprintEntry.number`).
 
@@ -752,6 +758,14 @@ class TTLockClient:
         accepts, so a UI can ask for the next. `step_timeout` applies to
         each of those waits, not to the enrollment as a whole. Validity
         works as in `add_card`.
+
+        The lock leaves add mode on its own after a few seconds with no
+        touch (about 8 s on a P3 padlock), and gives no sound to say it
+        started. `idle_retries` re-opens it that many times on the same
+        session when that happens before any touch, so whoever is at the
+        lock gets `(idle_retries + 1)` windows instead of one; each new
+        window is reported as `ENTER_ADD_MODE` again. A timeout after a
+        touch was accepted is not retried.
 
         Ported from ttlock-sdk-js and esphome-ttlock; not yet confirmed
         on a physical lock.
@@ -763,6 +777,7 @@ class TTLockClient:
                 on_progress,
                 step_timeout,
                 "add_fingerprint",
+                idle_retries=idle_retries,
             )
             if start_date is not None or end_date is not None:
                 await self._credential_exchange(
@@ -1239,52 +1254,81 @@ class TTLockClient:
         plain = self._decrypt_response(resp, label)
         self._require_success(plain, label)
 
-    async def _enroll(
+    async def _enroll(  # noqa: PLR0913 -- one enrollment's knobs, all keyword-free internals
         self,
         command: int,
         extract: Callable[[bytes], bytes],
         on_progress: EnrollmentListener | None,
         step_timeout: float,
         label: str,
+        *,
+        idle_retries: int = 0,
     ) -> bytes:
         """Drive one ADD enrollment on `command` to `ADD_SUCCESS` and return the new number.
 
         Caller holds `_command_lock`. Every frame between the ADD request
         and the final push is held for `receive`, so a touch reported
-        while the previous one is still being parsed is not lost.
+        while the previous one is still being parsed is not lost. An
+        idle timeout before any touch re-opens add mode up to
+        `idle_retries` times; see `add_fingerprint`.
         """
         await self._admin_handshake()
         with self._transport.holding_replies():
-            resp = await self._transport.exchange(
-                self._frame(command, cmd.payload_credential_add())
-            )
-            status, _tail = self._parse_enrollment(resp, label)
-            if status != EnrollmentStatus.ENTER_ADD_MODE:
-                raise TTLockError(
-                    f"Failed to {label}: lock did not enter add mode (status={status:#x})"
+            for window in range(idle_retries + 1):
+                resp = await self._transport.exchange(
+                    self._frame(command, cmd.payload_credential_add())
                 )
-            self._report_enrollment(on_progress, EnrollmentStatus.ENTER_ADD_MODE)
-            while True:
-                frame = await self._transport.receive(command, timeout=step_timeout)
-                status, tail = self._parse_enrollment(frame, label)
-                if status == EnrollmentStatus.ADD_SUCCESS:
-                    try:
-                        return extract(tail)
-                    except ValueError as error:
-                        raise TTLockError(f"Failed to {label}: {error}") from error
-                if status != EnrollmentStatus.FR_PROGRESS:
+                status, _tail = self._parse_enrollment(resp, label)
+                if status != EnrollmentStatus.ENTER_ADD_MODE:
                     raise TTLockError(
-                        f"Failed to {label}: unexpected enrollment status {status:#x}"
+                        f"Failed to {label}: lock did not enter add mode (status={status:#x})"
                     )
-                self._report_enrollment(on_progress, EnrollmentStatus.FR_PROGRESS)
+                self._report_enrollment(on_progress, EnrollmentStatus.ENTER_ADD_MODE)
+                touched = False
+                while True:
+                    frame = await self._transport.receive(command, timeout=step_timeout)
+                    plain = self._decrypt_response(frame, label)
+                    if self._idle_timeout(plain, label):
+                        if touched or window == idle_retries:
+                            raise TTLockError(
+                                f"Failed to {label}: nothing was presented to the lock in time"
+                            )
+                        log.info("%s: add mode timed out untouched; re-opening it", label)
+                        break
+                    status, tail = self._split_enrollment(plain, label)
+                    if status == EnrollmentStatus.ADD_SUCCESS:
+                        try:
+                            return extract(tail)
+                        except ValueError as error:
+                            raise TTLockError(f"Failed to {label}: {error}") from error
+                    if status != EnrollmentStatus.FR_PROGRESS:
+                        raise TTLockError(
+                            f"Failed to {label}: unexpected enrollment status {status:#x}"
+                        )
+                    touched = True
+                    self._report_enrollment(on_progress, EnrollmentStatus.FR_PROGRESS)
+        msg = f"Failed to {label}: enrollment ended without a result"
+        raise TTLockError(msg)  # pragma: no cover -- the loop returns or raises
 
-    def _parse_enrollment(self, frame: Frame, label: str) -> tuple[int, bytes]:
-        """Decrypt and split one enrollment frame, folding failures into `TTLockError`."""
-        plain = self._decrypt_response(frame, label)
+    @staticmethod
+    def _idle_timeout(plain: bytes, label: str) -> bool:
+        """Report whether `plain` is the lock leaving add mode with nothing presented."""
+        try:
+            return cmd.enrollment_failure_code(plain) == cmd.ENROLLMENT_IDLE_TIMEOUT
+        except ValueError as error:
+            raise TTLockError(f"Failed to {label}: {error}") from error
+
+    @staticmethod
+    def _split_enrollment(plain: bytes, label: str) -> tuple[int, bytes]:
+        """Split a decrypted enrollment frame, folding failures into `TTLockError`."""
         try:
             return cmd.parse_enrollment_response(plain)
         except (RuntimeError, ValueError) as error:
             raise TTLockError(f"Failed to {label}: {error}") from error
+
+    def _parse_enrollment(self, frame: Frame, label: str) -> tuple[int, bytes]:
+        """Decrypt and split one enrollment frame, folding failures into `TTLockError`."""
+        return self._split_enrollment(self._decrypt_response(frame, label), label)
 
     @staticmethod
     def _report_enrollment(listener: EnrollmentListener | None, status: EnrollmentStatus) -> None:
