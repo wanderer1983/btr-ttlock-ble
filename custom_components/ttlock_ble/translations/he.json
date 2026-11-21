@@ -208,6 +208,21 @@
   "exceptions": {
     "credentials_not_read": {
       "message": "לא ניתן לקרוא את אמצעי הגישה של {lock}. ודאו שהמנעול בטווח ונסו שוב."
+    },
+    "unknown_lock": {
+      "message": "המכשיר {device_id} אינו מנעול TTLock BLE מוגדר."
+    },
+    "not_admin": {
+      "message": "{lock} נוסף עם מפתח ללא קוד מנהל, ולכן לא ניתן לשנות את ההרשאות שלו."
+    },
+    "end_before_start": {
+      "message": "סוף תקופת התוקף חייב להיות אחרי תחילתה."
+    },
+    "credential_action_failed": {
+      "message": "{lock} לא השלים את השינוי: {error}"
+    },
+    "credential_not_found": {
+      "message": "ל-{lock} אין הרשאה שמספרה {credential}."
     }
   },
   "selector": {
@@ -215,6 +230,138 @@
       "options": {
         "dlock_xp": "TTLock / DLock-XP",
         "schlage_breeze": "Schlage Breeze"
+      }
+    }
+  },
+  "services": {
+    "add_passcode": {
+      "name": "הוספת קוד",
+      "description": "מוסיף קוד מקלדת למנעול דרך Bluetooth.",
+      "fields": {
+        "device_id": {
+          "name": "מנעול",
+          "description": "מנעול ה-TTLock לשינוי."
+        },
+        "passcode": {
+          "name": "קוד",
+          "description": "4 עד 9 ספרות."
+        },
+        "name": {
+          "name": "שם",
+          "description": "של מי ההרשאה. מוצג בהיסטוריית המנעול."
+        },
+        "start": {
+          "name": "בתוקף מ-",
+          "description": "השאירו ריק ללא תאריך התחלה."
+        },
+        "end": {
+          "name": "בתוקף עד",
+          "description": "השאירו ריק כדי שתישאר בתוקף לצמיתות."
+        }
+      }
+    },
+    "delete_passcode": {
+      "name": "מחיקת קוד",
+      "description": "מסיר קוד מקלדת מהמנעול.",
+      "fields": {
+        "device_id": {
+          "name": "מנעול",
+          "description": "מנעול ה-TTLock לשינוי."
+        },
+        "passcode": {
+          "name": "קוד",
+          "description": "4 עד 9 ספרות."
+        }
+      }
+    },
+    "change_passcode": {
+      "name": "החלפת קוד",
+      "description": "מחליף קוד מקלדת בקוד חדש, תוך שמירה על התוקף והשם. הקוד החדש נוסף לפני שהישן מוסר.",
+      "fields": {
+        "device_id": {
+          "name": "מנעול",
+          "description": "מנעול ה-TTLock לשינוי."
+        },
+        "passcode": {
+          "name": "קוד נוכחי",
+          "description": "הקוד שיוחלף."
+        },
+        "new_passcode": {
+          "name": "קוד חדש",
+          "description": "4 עד 9 ספרות."
+        }
+      }
+    },
+    "add_card": {
+      "name": "הוספת כרטיס",
+      "description": "מעביר את המנעול למצב רישום כרטיס וממתין לכרטיס שיוצמד לקורא. מחזיר את מספר הכרטיס החדש.",
+      "fields": {
+        "device_id": {
+          "name": "מנעול",
+          "description": "מנעול ה-TTLock לשינוי."
+        },
+        "name": {
+          "name": "שם",
+          "description": "של מי ההרשאה. מוצג בהיסטוריית המנעול."
+        },
+        "start": {
+          "name": "בתוקף מ-",
+          "description": "השאירו ריק ללא תאריך התחלה."
+        },
+        "end": {
+          "name": "בתוקף עד",
+          "description": "השאירו ריק כדי שתישאר בתוקף לצמיתות."
+        }
+      }
+    },
+    "delete_card": {
+      "name": "מחיקת כרטיס",
+      "description": "מסיר כרטיס מהמנעול.",
+      "fields": {
+        "device_id": {
+          "name": "מנעול",
+          "description": "מנעול ה-TTLock לשינוי."
+        },
+        "card": {
+          "name": "מספר כרטיס",
+          "description": "המספר שמוצג בישות השם של הכרטיס."
+        }
+      }
+    },
+    "add_fingerprint": {
+      "name": "הוספת טביעת אצבע",
+      "description": "מעביר את המנעול למצב רישום טביעת אצבע. הניחו את אותה אצבע על החיישן בכל פעם שהמנעול מבקש. מחזיר את מספר טביעת האצבע החדשה.",
+      "fields": {
+        "device_id": {
+          "name": "מנעול",
+          "description": "מנעול ה-TTLock לשינוי."
+        },
+        "name": {
+          "name": "שם",
+          "description": "של מי ההרשאה. מוצג בהיסטוריית המנעול."
+        },
+        "start": {
+          "name": "בתוקף מ-",
+          "description": "השאירו ריק ללא תאריך התחלה."
+        },
+        "end": {
+          "name": "בתוקף עד",
+          "description": "השאירו ריק כדי שתישאר בתוקף לצמיתות."
+        }
+      }
+    },
+    "delete_fingerprint": {
+      "name": "מחיקת טביעת אצבע",
+      "description": "מסיר טביעת אצבע מהמנעול.",
+      "fields": {
+        "device_id": {
+          "name": "מנעול",
+          "description": "מנעול ה-TTLock לשינוי."
+        },
+        "fingerprint": {
+          "name": "מספר טביעת אצבע",
+          "description": "המספר שמוצג בישות השם של טביעת האצבע."
+        }
       }
     }
   }

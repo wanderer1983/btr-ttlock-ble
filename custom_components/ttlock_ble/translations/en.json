@@ -208,6 +208,21 @@
   "exceptions": {
     "credentials_not_read": {
       "message": "Could not read the credentials of {lock}. Make sure the lock is in range and try again."
+    },
+    "unknown_lock": {
+      "message": "Device {device_id} is not a TTLock BLE lock that is set up."
+    },
+    "not_admin": {
+      "message": "{lock} was added with a key that has no admin passcode, so its credentials cannot be changed."
+    },
+    "end_before_start": {
+      "message": "The end of the validity period must be after its start."
+    },
+    "credential_action_failed": {
+      "message": "{lock} did not complete the change: {error}"
+    },
+    "credential_not_found": {
+      "message": "{lock} holds no credential numbered {credential}."
     }
   },
   "selector": {
@@ -215,6 +230,138 @@
       "options": {
         "dlock_xp": "TTLock / DLock-XP",
         "schlage_breeze": "Schlage Breeze"
+      }
+    }
+  },
+  "services": {
+    "add_passcode": {
+      "name": "Add passcode",
+      "description": "Adds a keypad passcode to the lock over Bluetooth.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "passcode": {
+          "name": "Passcode",
+          "description": "4 to 9 digits."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Who the credential belongs to. Shown in the lock's history."
+        },
+        "start": {
+          "name": "Valid from",
+          "description": "Leave empty for no start date."
+        },
+        "end": {
+          "name": "Valid until",
+          "description": "Leave empty to keep it valid for good."
+        }
+      }
+    },
+    "delete_passcode": {
+      "name": "Delete passcode",
+      "description": "Removes a keypad passcode from the lock.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "passcode": {
+          "name": "Passcode",
+          "description": "4 to 9 digits."
+        }
+      }
+    },
+    "change_passcode": {
+      "name": "Change passcode",
+      "description": "Replaces a keypad passcode with a new one, keeping its validity and name. The new code is added before the old one is removed.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "passcode": {
+          "name": "Current passcode",
+          "description": "The code to replace."
+        },
+        "new_passcode": {
+          "name": "New passcode",
+          "description": "4 to 9 digits."
+        }
+      }
+    },
+    "add_card": {
+      "name": "Add card",
+      "description": "Puts the lock in card-enrolment mode and waits for a card to be held to the reader. Returns the new card's number.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Who the credential belongs to. Shown in the lock's history."
+        },
+        "start": {
+          "name": "Valid from",
+          "description": "Leave empty for no start date."
+        },
+        "end": {
+          "name": "Valid until",
+          "description": "Leave empty to keep it valid for good."
+        }
+      }
+    },
+    "delete_card": {
+      "name": "Delete card",
+      "description": "Removes a card from the lock.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "card": {
+          "name": "Card number",
+          "description": "The number shown on the card's name entity."
+        }
+      }
+    },
+    "add_fingerprint": {
+      "name": "Add fingerprint",
+      "description": "Puts the lock in fingerprint-enrolment mode. Place the same finger on the sensor each time the lock asks. Returns the new fingerprint's number.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Who the credential belongs to. Shown in the lock's history."
+        },
+        "start": {
+          "name": "Valid from",
+          "description": "Leave empty for no start date."
+        },
+        "end": {
+          "name": "Valid until",
+          "description": "Leave empty to keep it valid for good."
+        }
+      }
+    },
+    "delete_fingerprint": {
+      "name": "Delete fingerprint",
+      "description": "Removes a fingerprint from the lock.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "fingerprint": {
+          "name": "Fingerprint number",
+          "description": "The number shown on the fingerprint's name entity."
+        }
       }
     }
   }

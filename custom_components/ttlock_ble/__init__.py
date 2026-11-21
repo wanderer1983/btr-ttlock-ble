@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, cast
 
 from homeassistant.const import Platform
 from homeassistant.core import callback
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.device_registry import (
     async_entries_for_config_entry,
     format_mac,
@@ -27,16 +28,20 @@ from .device_description_store import async_get_device_description_store
 from .passcode_ledger import TtlockBlePasscodeLedger
 from .record_store import async_get_record_store
 from .sdk import VirtualKey
+from .services import async_setup_services
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.device_registry import DeviceEntry
+    from homeassistant.helpers.typing import ConfigType
 
     from .data import (
         TtlockBleConfigData,
         TtlockBleConfigEntry,
         TtlockBleStoredKey,
     )
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -47,6 +52,12 @@ PLATFORMS: list[Platform] = [
     Platform.SWITCH,
     Platform.TEXT,
 ]
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:  # noqa: ARG001
+    """Register the credential-management actions, once for every entry."""
+    async_setup_services(hass)
+    return True
 
 
 def _configured_macs(config: TtlockBleConfigData) -> set[str]:

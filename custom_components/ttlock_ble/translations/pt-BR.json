@@ -208,6 +208,21 @@
   "exceptions": {
     "credentials_not_read": {
       "message": "Não foi possível ler as credenciais de {lock}. Verifique se a fechadura está ao alcance e tente novamente."
+    },
+    "unknown_lock": {
+      "message": "O dispositivo {device_id} não é uma fechadura TTLock BLE configurada."
+    },
+    "not_admin": {
+      "message": "{lock} foi adicionada com uma chave sem senha de administrador, por isso as credenciais dela não podem ser alteradas."
+    },
+    "end_before_start": {
+      "message": "O fim do período de validade tem de ser depois do início."
+    },
+    "credential_action_failed": {
+      "message": "{lock} não concluiu a alteração: {error}"
+    },
+    "credential_not_found": {
+      "message": "{lock} não tem nenhuma credencial com o número {credential}."
     }
   },
   "selector": {
@@ -215,6 +230,138 @@
       "options": {
         "dlock_xp": "TTLock / DLock-XP",
         "schlage_breeze": "Schlage Breeze"
+      }
+    }
+  },
+  "services": {
+    "add_passcode": {
+      "name": "Adicionar senha",
+      "description": "Adiciona uma senha do teclado à fechadura via Bluetooth.",
+      "fields": {
+        "device_id": {
+          "name": "Fechadura",
+          "description": "A fechadura TTLock a alterar."
+        },
+        "passcode": {
+          "name": "Senha",
+          "description": "De 4 a 9 dígitos."
+        },
+        "name": {
+          "name": "Nome",
+          "description": "De quem é a credencial. Aparece no histórico da fechadura."
+        },
+        "start": {
+          "name": "Válida a partir de",
+          "description": "Deixe vazio para não ter data de início."
+        },
+        "end": {
+          "name": "Válida até",
+          "description": "Deixe vazio para que continue válida para sempre."
+        }
+      }
+    },
+    "delete_passcode": {
+      "name": "Excluir senha",
+      "description": "Remove uma senha do teclado da fechadura.",
+      "fields": {
+        "device_id": {
+          "name": "Fechadura",
+          "description": "A fechadura TTLock a alterar."
+        },
+        "passcode": {
+          "name": "Senha",
+          "description": "De 4 a 9 dígitos."
+        }
+      }
+    },
+    "change_passcode": {
+      "name": "Trocar senha",
+      "description": "Substitui uma senha do teclado por outra, mantendo a validade e o nome. A nova senha é adicionada antes de a antiga ser removida.",
+      "fields": {
+        "device_id": {
+          "name": "Fechadura",
+          "description": "A fechadura TTLock a alterar."
+        },
+        "passcode": {
+          "name": "Senha atual",
+          "description": "A senha a substituir."
+        },
+        "new_passcode": {
+          "name": "Nova senha",
+          "description": "De 4 a 9 dígitos."
+        }
+      }
+    },
+    "add_card": {
+      "name": "Adicionar cartão",
+      "description": "Coloca a fechadura no modo de cadastro de cartão e espera que um cartão seja aproximado do leitor. Devolve o número do novo cartão.",
+      "fields": {
+        "device_id": {
+          "name": "Fechadura",
+          "description": "A fechadura TTLock a alterar."
+        },
+        "name": {
+          "name": "Nome",
+          "description": "De quem é a credencial. Aparece no histórico da fechadura."
+        },
+        "start": {
+          "name": "Válida a partir de",
+          "description": "Deixe vazio para não ter data de início."
+        },
+        "end": {
+          "name": "Válida até",
+          "description": "Deixe vazio para que continue válida para sempre."
+        }
+      }
+    },
+    "delete_card": {
+      "name": "Excluir cartão",
+      "description": "Remove um cartão da fechadura.",
+      "fields": {
+        "device_id": {
+          "name": "Fechadura",
+          "description": "A fechadura TTLock a alterar."
+        },
+        "card": {
+          "name": "Número do cartão",
+          "description": "O número mostrado na entidade de nome do cartão."
+        }
+      }
+    },
+    "add_fingerprint": {
+      "name": "Adicionar digital",
+      "description": "Coloca a fechadura no modo de cadastro de digital. Encoste o mesmo dedo no sensor sempre que a fechadura pedir. Devolve o número da nova digital.",
+      "fields": {
+        "device_id": {
+          "name": "Fechadura",
+          "description": "A fechadura TTLock a alterar."
+        },
+        "name": {
+          "name": "Nome",
+          "description": "De quem é a credencial. Aparece no histórico da fechadura."
+        },
+        "start": {
+          "name": "Válida a partir de",
+          "description": "Deixe vazio para não ter data de início."
+        },
+        "end": {
+          "name": "Válida até",
+          "description": "Deixe vazio para que continue válida para sempre."
+        }
+      }
+    },
+    "delete_fingerprint": {
+      "name": "Excluir digital",
+      "description": "Remove uma digital da fechadura.",
+      "fields": {
+        "device_id": {
+          "name": "Fechadura",
+          "description": "A fechadura TTLock a alterar."
+        },
+        "fingerprint": {
+          "name": "Número da digital",
+          "description": "O número mostrado na entidade de nome da digital."
+        }
       }
     }
   }

@@ -28,6 +28,7 @@ from .data import TtlockBleLogCursor
 from .sdk import TTLockClient, TTLockError
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
     from datetime import datetime
 
     from bleak import BleakClient
@@ -455,6 +456,37 @@ class TtlockBleConnection:
                 )
         return new_entries
 
+    async def async_manage[T](
+        self, action: str, operation: Callable[[TTLockClient], Awaitable[T]]
+    ) -> T:
+        """
+        Run one credential-management call on a live session and return its result.
+
+        `operation` gets the connected client and does the SDK calls -
+        an enrollment, a delete, a list followed by a delete - under the
+        connection's lock, so nothing else talks to the lock meanwhile.
+        Failures surface as `TTLockError`, exactly as for lock and unlock
+        (see `_async_run_command`); `action` only names the call in them.
+        """
+        async with self._lock:
+            client = await self._async_ensure_connected_locked()
+            if client is None:
+                msg = f"Lock {self._key.lockMac} not reachable via Bluetooth"
+                raise TTLockError(msg)
+            try:
+                return await operation(client)
+            except TTLockError:
+                await self._async_disconnect_locked()
+                raise
+            except TimeoutError as exc:
+                await self._async_disconnect_locked()
+                msg = f"Lock {self._key.lockMac} timed out responding to {action}"
+                raise TTLockError(msg) from exc
+            except Exception as exc:
+                await self._async_disconnect_locked()
+                msg = f"Lock {self._key.lockMac} failed to {action}: {exc}"
+                raise TTLockError(msg) from exc
+
     async def _async_run_command(self, action: str) -> None:
         """
         Acquire the lock, ensure connected, then run one command on it.
@@ -468,29 +500,16 @@ class TtlockBleConnection:
         of `aes_decrypt` on a garbled frame. `TTLockError` subclasses
         `RuntimeError`, so it has to be caught first.
         """
-        async with self._lock:
-            client = await self._async_ensure_connected_locked()
-            if client is None:
-                msg = f"Lock {self._key.lockMac} not reachable via Bluetooth"
-                raise TTLockError(msg)
-            try:
-                if action == "lock":
-                    await client.lock()
-                elif action == "unlock":
-                    await client.unlock()
-                else:
-                    await client.set_lock_sound(enabled=action == "sound_on")
-            except TTLockError:
-                await self._async_disconnect_locked()
-                raise
-            except TimeoutError as exc:
-                await self._async_disconnect_locked()
-                msg = f"Lock {self._key.lockMac} timed out responding to {action}"
-                raise TTLockError(msg) from exc
-            except Exception as exc:
-                await self._async_disconnect_locked()
-                msg = f"Lock {self._key.lockMac} failed to {action}: {exc}"
-                raise TTLockError(msg) from exc
+
+        async def _command(client: TTLockClient) -> None:
+            if action == "lock":
+                await client.lock()
+            elif action == "unlock":
+                await client.unlock()
+            else:
+                await client.set_lock_sound(enabled=action == "sound_on")
+
+        await self.async_manage(action, _command)
 
     async def _async_ensure_connected_locked(self) -> TTLockClient | None:
         """
