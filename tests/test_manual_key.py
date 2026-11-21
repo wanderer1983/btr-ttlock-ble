@@ -182,6 +182,15 @@ class TestBuild:
         assert key.lockVersion.groupId == 1
         assert key.lockVersion.orgId == 1
 
+    async def test_a_key_with_an_admin_passcode_is_an_admin_key(self, hass) -> None:
+        key = _manual_key(hass).build(dict(MANUAL_INPUT))
+        assert key.is_admin()
+
+    async def test_a_key_without_an_admin_passcode_is_not(self, hass) -> None:
+        key = _manual_key(hass).build({**MANUAL_INPUT, "admin_passcode": " "})
+        assert not key.is_admin()
+        assert key.adminPs == ""
+
     async def test_normalises_a_separated_aes_key(self, hass) -> None:
         """A key the BLE layer could not parse would only fail on connect."""
         separated = " ".join(AES_KEY_HEX[i : i + 2] for i in range(0, 32, 2))

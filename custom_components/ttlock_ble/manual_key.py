@@ -10,6 +10,7 @@ from homeassistant.components.bluetooth import async_last_service_info
 from .advertisement import decode_lock_advertisement
 from .const import LOGGER
 from .sdk import LockVersion, VirtualKey
+from .sdk.models.virtual_key import USER_TYPE_ADMIN
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -73,6 +74,7 @@ class TtlockBleManualKey:
         if aes_key is None:
             msg = "build() requires input that async_validate accepted"
             raise ValueError(msg)
+        admin_passcode = (user_input.get("admin_passcode") or "").strip()
         return VirtualKey(
             keyId=0,
             lockId=0,
@@ -90,7 +92,12 @@ class TtlockBleManualKey:
             unlockKey=user_input["unlock_key"].strip(),
             lockFlagPos=0,
             timezoneRawOffSet=0,
-            adminPs=(user_input.get("admin_passcode") or "").strip(),
+            adminPs=admin_passcode,
+            # The cloud marks the owner's key with this user type, and the
+            # integration gates settings and credential management on it. A
+            # manual key carries no cloud fields, so the admin passcode is
+            # what says it is one: CHECK_ADMIN verifies that, not the type.
+            userType=USER_TYPE_ADMIN if admin_passcode else "",
         )
 
     @staticmethod
