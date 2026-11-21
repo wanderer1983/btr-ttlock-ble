@@ -13,13 +13,12 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
-from ttlock_ble import LockState, TTLockError
-
 from .connection import event_signal, state_signal
 from .const import DOMAIN, LOGGER
 from .data import TtlockBleIssuedCommand
 from .entity import TtlockBleEntity
 from .lock_command import TtlockBleLockCommand
+from .sdk import LockState, TTLockError
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
@@ -28,12 +27,11 @@ if TYPE_CHECKING:
     from homeassistant.core import CALLBACK_TYPE, HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from ttlock_ble import LockEvent, VirtualKey
-
     from .command_journal import TtlockBleCommandJournal
     from .connection import TtlockBleConnection
     from .coordinator import TtlockBleDataUpdateCoordinator
     from .data import TtlockBleConfigEntry
+    from .sdk import LockEvent, VirtualKey
 
 
 # Upper bound on a command's settle window. The window normally ends

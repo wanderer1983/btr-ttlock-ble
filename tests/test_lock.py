@@ -6,7 +6,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 from homeassistant.exceptions import HomeAssistantError
-from ttlock_ble import LockState, TTLockError
+
+from custom_components.ttlock_ble.sdk import LockState, TTLockError
 
 
 async def test_periodic_read_updates_bolt_without_notification(
@@ -338,9 +339,9 @@ async def test_settle_window_suppresses_blink(
     from homeassistant.components.lock import DOMAIN as LOCK_DOMAIN
     from homeassistant.components.lock import SERVICE_UNLOCK
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     mock_ttlock_connection.async_query_state = AsyncMock(return_value=(0, 80))
     state = hass.states.async_all("lock")[0]
@@ -379,9 +380,9 @@ async def test_lock_event_triggers_state_refresh(
 ) -> None:
     """A push event on the dispatcher signal forces a state re-query."""
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     state = hass.states.async_all("lock")[0]
     assert state.state == "locked"
@@ -405,9 +406,9 @@ async def test_lock_event_with_decoded_state_skips_query(
 ) -> None:
     """A push event carrying `lock_state` updates the UI without re-querying."""
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     state = hass.states.async_all("lock")[0]
     assert state.state == "locked"
@@ -435,9 +436,9 @@ async def test_completion_push_ends_the_settle_window_whatever_it_says(
     from homeassistant.components.lock import DOMAIN as LOCK_DOMAIN
     from homeassistant.components.lock import SERVICE_UNLOCK
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     mock_ttlock_connection.async_query_state = AsyncMock(return_value=None)
     state = hass.states.async_all("lock")[0]
@@ -533,9 +534,9 @@ async def test_a_new_command_replaces_the_pending_settle_timer(
     from homeassistant.components.lock import DOMAIN as LOCK_DOMAIN
     from homeassistant.components.lock import SERVICE_LOCK, SERVICE_UNLOCK
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     mock_ttlock_connection.async_query_state = AsyncMock(return_value=None)
     state = hass.states.async_all("lock")[0]
@@ -566,9 +567,9 @@ async def test_stale_reading_is_ignored_after_the_window_closes(
     from homeassistant.components.lock import DOMAIN as LOCK_DOMAIN
     from homeassistant.components.lock import SERVICE_UNLOCK
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     mock_ttlock_connection.async_query_state = AsyncMock(return_value=None)
     state = hass.states.async_all("lock")[0]
@@ -608,9 +609,9 @@ async def test_a_reading_is_adopted_once(
     import time
 
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     state = hass.states.async_all("lock")[0]
     coordinator = hass.config_entries.async_entries("ttlock_ble")[
@@ -649,9 +650,9 @@ async def test_a_fresh_reading_after_the_command_is_adopted(
     from homeassistant.components.lock import DOMAIN as LOCK_DOMAIN
     from homeassistant.components.lock import SERVICE_UNLOCK
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     mock_ttlock_connection.async_query_state = AsyncMock(return_value=None)
     state = hass.states.async_all("lock")[0]
@@ -964,9 +965,9 @@ async def test_push_with_an_undecodable_state_byte_falls_back_to_a_query(
 ) -> None:
     """Build the event through the SDK, so the shape asserted is one it emits."""
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     # A state byte outside the two the firmware defines decodes to None,
     # which is the only "unknown" the entity can ever be handed.
@@ -990,9 +991,9 @@ async def test_lock_event_forced_query_returns_none_keeps_state(
 ) -> None:
     """When the forced re-query yields no state, the UI keeps its last value."""
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     state = hass.states.async_all("lock")[0]
     assert state.state == "locked"

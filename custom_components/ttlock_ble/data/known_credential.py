@@ -11,7 +11,7 @@ from ..credential_type import TtlockBleCredentialType
 from .enrolled_fingerprint import TtlockBleEnrolledFingerprint
 
 if TYPE_CHECKING:
-    from ttlock_ble import CardEntry, FingerprintEntry
+    from ..sdk import CardEntry, FingerprintEntry
 
 PASSCODE_MASK = "•••"
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from ttlock_ble import LogOperate
+from .sdk import LogOperate
 
 
 class TtlockBleCredentialType(StrEnum):

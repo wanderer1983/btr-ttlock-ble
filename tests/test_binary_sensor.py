@@ -95,7 +95,7 @@ async def test_connection_binary_sensor_updates_on_signal(
 
 
 def _door_record(record_type: int, record_number: int = 1):
-    from ttlock_ble import LogEntry
+    from custom_components.ttlock_ble.sdk import LogEntry
 
     return LogEntry(
         record_number=record_number,
@@ -121,7 +121,7 @@ async def test_door_binary_sensor_absent_until_the_lock_reports_a_door(
     setup_integration,
     sample_virtual_key,
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     async_dispatcher_send(
         hass,
@@ -168,7 +168,7 @@ async def test_door_binary_sensor_keeps_the_last_record_of_a_batch(
     setup_integration,
     sample_virtual_key,
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     signal = log_signal(sample_virtual_key.lockMac)
     async_dispatcher_send(
@@ -186,7 +186,7 @@ async def test_door_binary_sensor_follows_later_records(
     setup_integration,
     sample_virtual_key,
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     signal = log_signal(sample_virtual_key.lockMac)
     async_dispatcher_send(hass, signal, _door_record(int(LogOperate.DOOR_SENSOR_LOCK)))
@@ -204,7 +204,7 @@ async def test_door_binary_sensor_survives_a_reload_with_its_last_state(
     setup_integration,
     sample_virtual_key,
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     async_dispatcher_send(
         hass,
@@ -264,7 +264,8 @@ async def test_door_binary_sensor_removed_entity_ignores_later_records(
     sample_virtual_key,
 ) -> None:
     from homeassistant.helpers import entity_registry as er
-    from ttlock_ble import LogOperate
+
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     signal = log_signal(sample_virtual_key.lockMac)
     async_dispatcher_send(hass, signal, _door_record(int(LogOperate.DOOR_SENSOR_LOCK)))

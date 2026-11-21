@@ -7,15 +7,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.util import dt as dt_util
-from ttlock_ble import (
-    CardEntry,
-    DeviceInfo,
-    FingerprintEntry,
-    KeyboardPwdType,
-    LockFeature,
-    LockSound,
-    PasscodeEntry,
-)
 
 from custom_components.ttlock_ble.clock_sync_store import TtlockBleClockSyncStore
 from custom_components.ttlock_ble.coordinator import (
@@ -31,6 +22,15 @@ from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
 from custom_components.ttlock_ble.data import TtlockBleKnownCredential
 from custom_components.ttlock_ble.device_description_store import (
     TtlockBleDeviceDescriptionStore,
+)
+from custom_components.ttlock_ble.sdk import (
+    CardEntry,
+    DeviceInfo,
+    FingerprintEntry,
+    KeyboardPwdType,
+    LockFeature,
+    LockSound,
+    PasscodeEntry,
 )
 
 
@@ -139,7 +139,7 @@ def _advertisement(
     dormant: bool = False,
     records: bool = False,
 ):
-    from ttlock_ble import LockAdvertisement, LockState
+    from custom_components.ttlock_ble.sdk import LockAdvertisement, LockState
 
     if dormant:
         lock_state = None

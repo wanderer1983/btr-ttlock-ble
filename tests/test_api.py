@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from ttlock_ble import CLOUD_APPS, CloudError
 
 from custom_components.ttlock_ble.api import TtlockBleApiClient
 from custom_components.ttlock_ble.exceptions import (
@@ -13,6 +12,7 @@ from custom_components.ttlock_ble.exceptions import (
     TtlockBleApiClientError,
     TtlockBleApiClientVerificationRequiredError,
 )
+from custom_components.ttlock_ble.sdk import CLOUD_APPS, CloudError
 
 
 def _client(mock_cloud: MagicMock) -> TtlockBleApiClient:

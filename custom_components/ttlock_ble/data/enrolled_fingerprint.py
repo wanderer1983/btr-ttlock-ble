@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
 
 if TYPE_CHECKING:
-    from ttlock_ble import FingerprintEntry
+    from ..sdk import FingerprintEntry
 
 
 @dataclass(frozen=True)

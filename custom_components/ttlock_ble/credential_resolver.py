@@ -4,18 +4,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ttlock_ble import LogOperate
-
 from .credential_type import TtlockBleCredentialType
 from .data import TtlockBleEnrolledFingerprint, TtlockBleLogCredential
 from .data.known_credential import passcode_key
 from .lock_command import TtlockBleLockCommand
+from .sdk import LogOperate
 
 if TYPE_CHECKING:
-    from ttlock_ble import LogEntry
-
     from .command_journal import TtlockBleCommandJournal
     from .credential_store import TtlockBleCredentialStore
+    from .sdk import LogEntry
 
 HOME_ASSISTANT_NAME = "Home Assistant"
 

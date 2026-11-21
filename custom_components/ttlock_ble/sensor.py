@@ -27,8 +27,6 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
-from ttlock_ble import LockFeature, LogOperate
-
 from .connection import event_signal, log_signal, quality_signal
 from .credential_resolver import TtlockBleCredentialResolver
 from .credential_store import async_get_credential_store
@@ -36,6 +34,7 @@ from .credential_type import TtlockBleCredentialType
 from .entity import TtlockBleEntity
 from .event import UNLOCK_RECORD_TYPES
 from .key_privileges import can_administer, may_hold
+from .sdk import LockFeature, LogOperate
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -43,11 +42,10 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from ttlock_ble import LockEvent, LogEntry, VirtualKey
-
     from .connection_quality import TtlockBleConnectionQuality
     from .coordinator import TtlockBleDataUpdateCoordinator
     from .data import TtlockBleConfigEntry, TtlockBleLastUnlockAttributes
+    from .sdk import LockEvent, LogEntry, VirtualKey
 
 # How often the recorded advertisement is re-read. Costs nothing on the
 # wire: it only looks at what the bluetooth manager already holds.

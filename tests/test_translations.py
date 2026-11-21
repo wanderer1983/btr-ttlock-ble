@@ -84,11 +84,11 @@ async def test_entity_translation_keys_and_authored_names_agree(
     """
     from homeassistant.helpers import entity_registry as er
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LogEntry, LogOperate
 
     from custom_components.ttlock_ble.connection import log_signal
     from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
     from custom_components.ttlock_ble.data import TtlockBleKnownCredential
+    from custom_components.ttlock_ble.sdk import LogEntry, LogOperate
 
     coordinator = setup_integration.runtime_data.coordinator
     mac = sample_virtual_key.lockMac

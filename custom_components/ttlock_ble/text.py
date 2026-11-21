@@ -16,11 +16,10 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from ttlock_ble import VirtualKey
-
     from .coordinator import TtlockBleDataUpdateCoordinator
     from .credential_store import TtlockBleCredentialStore
     from .data import TtlockBleConfigEntry, TtlockBleKnownCredential
+    from .sdk import VirtualKey
 
 
 async def async_setup_entry(

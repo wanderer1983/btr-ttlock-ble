@@ -17,21 +17,19 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from ttlock_ble import LogOperate
-
 from .connection import connection_signal, log_signal
 from .const import DOMAIN
 from .entity import TtlockBleEntity
+from .sdk import LogOperate
 
 if TYPE_CHECKING:
     from homeassistant.core import CALLBACK_TYPE, HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from ttlock_ble import LogEntry, VirtualKey
-
     from .connection import TtlockBleConnection
     from .coordinator import TtlockBleDataUpdateCoordinator
     from .data import TtlockBleConfigEntry
+    from .sdk import LogEntry, VirtualKey
 
 
 DOOR_OPENED_RECORD_TYPES: frozenset[int] = frozenset(

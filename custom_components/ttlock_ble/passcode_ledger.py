@@ -8,21 +8,19 @@ from typing import TYPE_CHECKING
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from ttlock_ble import LogOperate
-
 from .connection import log_signal
 from .credential_type import TtlockBleCredentialType
 from .data import TtlockBleKnownCredential
+from .sdk import LogOperate
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from homeassistant.core import CALLBACK_TYPE, HomeAssistant
 
-    from ttlock_ble import LogEntry, VirtualKey
-
     from .coordinator import TtlockBleDataUpdateCoordinator
     from .credential_store import TtlockBleCredentialStore
+    from .sdk import LogEntry, VirtualKey
 
 # Records made with a passcode the lock accepted, or right after adding one.
 # A rejected code is left out: it is not a passcode the lock holds.

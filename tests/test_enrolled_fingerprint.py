@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import pytest
-from ttlock_ble import FingerprintEntry
 
 from custom_components.ttlock_ble.data import TtlockBleEnrolledFingerprint
+from custom_components.ttlock_ble.sdk import FingerprintEntry
 
 
 def test_the_identity_comes_from_the_sdk_entry() -> None:

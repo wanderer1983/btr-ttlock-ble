@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ttlock_ble import LockFeature, VirtualKey
+    from .sdk import LockFeature, VirtualKey
 
 
 def can_administer(key: VirtualKey) -> bool:

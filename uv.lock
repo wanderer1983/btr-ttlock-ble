@@ -3,9 +3,9 @@ revision = 5
 requires-python = ">=3.14.2"
 resolution-markers = [
     "python_full_version >= '3.15' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
-    "(python_full_version >= '3.15' and platform_machine != 'x86_64') or (python_full_version >= '3.15' and sys_platform != 'darwin')",
+    "python_full_version >= '3.15' and (platform_machine != 'x86_64' or sys_platform != 'darwin')",
     "python_full_version < '3.15' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
-    "(python_full_version < '3.15' and platform_machine != 'x86_64') or (python_full_version < '3.15' and sys_platform != 'darwin')",
+    "python_full_version < '3.15' and (platform_machine != 'x86_64' or sys_platform != 'darwin')",
 ]
 
 [[package]]
@@ -675,7 +675,7 @@ name = "build"
 version = "1.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "(os_name == 'nt' and platform_machine != 'x86_64') or (os_name == 'nt' and sys_platform != 'darwin')" },
+    { name = "colorama", marker = "os_name == 'nt'" },
     { name = "packaging" },
     { name = "pyproject-hooks" },
 ]
@@ -1186,7 +1186,6 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest-homeassistant-custom-component" },
     { name = "serialx" },
-    { name = "ttlock-ble" },
 ]
 lint = [
     { name = "mypy" },
@@ -1207,7 +1206,6 @@ dev = [
     { name = "pre-commit", specifier = "==4.7.0" },
     { name = "pytest-homeassistant-custom-component", specifier = "==0.13.375" },
     { name = "serialx", specifier = "==1.15.1" },
-    { name = "ttlock-ble", specifier = "==0.3.5" },
 ]
 lint = [
     { name = "mypy", specifier = "==2.4.1" },
@@ -3141,21 +3139,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ee/9f/c5201d42a484c061e528825fc8e2d565f5abd50a4ced6fb7d29c4ec99b2b/truststore-0.10.5.tar.gz", hash = "sha256:30d36967ccaded5cbb38d602c433f53600036c79d502f4533a49b60a03bbefcd", size = 28091, upload-time = "2026-10-12T22:27:31.808Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/51/e9/3a7820be2bb0fe53b6bc9c3be26d3d1158004e4c3ab953aa6840b955b1e9/truststore-0.10.5-py3-none-any.whl", hash = "sha256:9aaaedaefaf06d8b206278cf8b5012bc897f485a874503501e12d776df78951c", size = 19017, upload-time = "2026-10-12T22:27:30.377Z" },
-]
-
-[[package]]
-name = "ttlock-ble"
-version = "0.3.5"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "bleak" },
-    { name = "bleak-retry-connector" },
-    { name = "cryptography" },
-    { name = "httpx" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f4/72/4f2aed85f2a21e99512977d4843b97a25299089feea5d2d5e7914788aa02/ttlock_ble-0.3.5.tar.gz", hash = "sha256:3adfec271a05cd992855e83b0e164ec94db087ba158eb7369385303c3f7c7f81", size = 78940, upload-time = "2026-11-14T22:58:26.415Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e3/37/ec0629e6a4225b760d6f79b1c9622e0a021f9b463b3527ae85ad7fc0e0d3/ttlock_ble-0.3.5-py3-none-any.whl", hash = "sha256:9be65a30c1f36791bf4c771d2f96eae325c766b0d19658c349d45583b90d126e", size = 100370, upload-time = "2026-11-14T22:58:25.181Z" },
 ]
 
 [[package]]

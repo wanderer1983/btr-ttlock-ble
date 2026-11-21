@@ -14,8 +14,6 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from ttlock_ble import CLOUD_APPS, CloudError, TTLockCloud
-
 from .const import CLOUD_ERR_NEW_DEVICE_LOGIN, HTTP_STATUS_UNAUTHORIZED
 from .exceptions import (
     TtlockBleApiClientAuthenticationError,
@@ -23,9 +21,10 @@ from .exceptions import (
     TtlockBleApiClientError,
     TtlockBleApiClientVerificationRequiredError,
 )
+from .sdk import CLOUD_APPS, CloudError, TTLockCloud
 
 if TYPE_CHECKING:
-    from ttlock_ble import VirtualKey
+    from .sdk import VirtualKey
 
 
 class TtlockBleApiClient:

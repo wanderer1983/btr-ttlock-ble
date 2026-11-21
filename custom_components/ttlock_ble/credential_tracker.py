@@ -19,9 +19,8 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from ttlock_ble import VirtualKey
-
     from .data import TtlockBleConfigEntry, TtlockBleKnownCredential
+    from .sdk import VirtualKey
     from .text import TtlockBleCredentialNameText
 
 # Lists only an admin key can read. Passcodes are also learned from the

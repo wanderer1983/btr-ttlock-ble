@@ -14,21 +14,19 @@ from homeassistant.components.event import EventEntity
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from ttlock_ble import LogOperate
-
 from .connection import log_signal
 from .credential_resolver import TtlockBleCredentialResolver
 from .credential_store import async_get_credential_store
 from .entity import TtlockBleEntity
+from .sdk import LogOperate
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from ttlock_ble import LogEntry, VirtualKey
-
     from .coordinator import TtlockBleDataUpdateCoordinator
     from .data import TtlockBleConfigEntry, TtlockBleLogEventAttributes
+    from .sdk import LogEntry, VirtualKey
 
 
 LOG_EVENT_TYPES: list[str] = [

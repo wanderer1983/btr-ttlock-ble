@@ -22,11 +22,10 @@ from typing import TYPE_CHECKING
 from homeassistant.components.bluetooth import async_ble_device_from_address
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from ttlock_ble import TTLockClient, TTLockError
-
 from .connection_quality import TtlockBleConnectionQuality
 from .const import DOMAIN, LOGGER
 from .data import TtlockBleLogCursor
+from .sdk import TTLockClient, TTLockError
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -34,7 +33,7 @@ if TYPE_CHECKING:
     from bleak import BleakClient
     from homeassistant.core import HomeAssistant
 
-    from ttlock_ble import (
+    from .sdk import (
         CardEntry,
         DeviceInfo,
         FingerprintEntry,

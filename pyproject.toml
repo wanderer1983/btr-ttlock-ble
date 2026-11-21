@@ -19,7 +19,6 @@ dev = [
     "pre-commit==4.7.0",
     "pytest-homeassistant-custom-component==0.13.375",
     "serialx==1.15.1",
-    "ttlock-ble==0.3.5",
 ]
 lint = [
     "ruff==0.17.5",
@@ -40,6 +39,7 @@ addopts = [
 python_version = "3.14"
 files = ["custom_components/ttlock_ble"]
 explicit_package_bases = true
+exclude = ["custom_components/ttlock_ble/sdk/"]
 ignore_missing_imports = true
 follow_imports = "silent"
 strict_optional = true
@@ -58,6 +58,8 @@ check_untyped_defs = false
 
 [tool.ruff]
 target-version = "py314"
+# Vendored from wanderer/ttlock-ble, which lints and tests it under its own rules.
+extend-exclude = ["custom_components/ttlock_ble/sdk"]
 
 [tool.ruff.format]
 exclude = ["*.md"]  # ruff 0.16 formats Python blocks in Markdown; docs keep their own layout
@@ -80,3 +82,8 @@ max-complexity = 25
     "S101", "S105", "S106", "D", "ANN", "ARG001", "ARG002",
     "PLC0415", "SLF001", "PLR2004", "PLR0913", "PLR0917",
 ]
+# Developer tools run by hand: printing and calling git are the point.
+"scripts/*.py" = ["INP001", "S603", "T201"]
+
+[tool.coverage.run]
+omit = ["custom_components/ttlock_ble/sdk/*"]

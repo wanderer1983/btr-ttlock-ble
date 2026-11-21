@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import pytest
-from ttlock_ble import LogOperate
 
 from custom_components.ttlock_ble.credential_type import (
     _RECORD_TYPES_BY_CREDENTIAL,
     TtlockBleCredentialType,
 )
+from custom_components.ttlock_ble.sdk import LogOperate
 
 
 @pytest.mark.parametrize(

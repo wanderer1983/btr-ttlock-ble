@@ -1,0 +1,195 @@
+"""TTLock V3 command opcodes and per-command payload builders / response parsers.
+
+Maps directly to `com.ttlock.bl.sdk.command.Command` and its helpers in the
+official Android SDK. We focus on `lockType=5` (V3), which covers virtually
+every current DLock-XP / TTLock smart-lock SKU.
+
+One submodule per command family — `session` for the handshake, `control`
+for the bolt, `clock`, `auto_lock`, `passcode`, `passcode_list`,
+`operate_log`, `lock_sound`, `card`, `fingerprint`, `credential_manage`,
+`device_feature` and
+`device_properties` for the rest — over the shared `opcodes`, `envelope` and
+`encoding` primitives.
+"""
+
+from __future__ import annotations
+
+from .auto_lock import (
+    parse_auto_lock_limits_response,
+    parse_auto_lock_response,
+    payload_auto_lock_search,
+    payload_auto_lock_set,
+)
+from .card import parse_card_list_response, payload_card_list
+from .clock import parse_get_lock_time_response, payload_get_lock_time, payload_time_calibrate
+from .control import (
+    LOCKED,
+    UNLOCKED,
+    parse_lock_status,
+    parse_state_battery,
+    payload_query_state,
+    payload_unlock,
+)
+from .credential_manage import (
+    FINGERPRINT_NUMBER_LENGTH,
+    card_id_from_enrollment,
+    encode_date5,
+    fingerprint_number_from_enrollment,
+    parse_enrollment_response,
+    payload_card_delete,
+    payload_card_modify,
+    payload_credential_add,
+    payload_credential_clear,
+    payload_fingerprint_delete,
+    payload_fingerprint_modify,
+)
+from .device_feature import parse_device_feature_response, payload_search_device_feature
+from .device_properties import (
+    parse_device_property_clock,
+    parse_device_property_mac,
+    parse_device_property_string,
+    payload_device_property,
+)
+from .envelope import RESPONSE_FAILED, RESPONSE_SUCCESS, parse_response_status
+from .fingerprint import (
+    END_DATE_SENTINEL,
+    START_DATE_SENTINEL,
+    parse_fingerprint_list_response,
+    payload_fingerprint_list,
+)
+from .lock_sound import (
+    parse_lock_sound_response,
+    payload_get_lock_sound,
+    payload_set_lock_sound,
+    payload_set_lock_volume,
+)
+from .opcodes import (
+    APICMD_LOCK_BY_ADMIN,
+    APICMD_LOCK_BY_USER,
+    APICMD_UNLOCK_BY_ADMIN,
+    APICMD_UNLOCK_BY_USER,
+    CMD_AUTO_LOCK_MANAGE,
+    CMD_CHECK_ADMIN,
+    CMD_CHECK_RANDOM,
+    CMD_CHECK_USER_TIME,
+    CMD_GET_AES_KEY,
+    CMD_GET_DEVICE_PROPERTIES,
+    CMD_GET_LOCK_TIME,
+    CMD_GET_OPERATE_LOG,
+    CMD_GET_PASSCODES,
+    CMD_INIT_PASSWORDS,
+    CMD_LOCK,
+    CMD_MANAGE_FINGERPRINT,
+    CMD_MANAGE_IC_CARD,
+    CMD_MANAGE_KEYBOARD_PASSWORD,
+    CMD_QUERY_STATE,
+    CMD_RESPONSE,
+    CMD_SEARCH_DEVICE_FEATURE,
+    CMD_SET_LOCK_SOUND,
+    CMD_SWITCH,
+    CMD_TIME_CALIBRATE,
+    CMD_UNLOCK,
+)
+from .operate_log import parse_operate_log_response, payload_operate_log_request
+from .passcode import (
+    payload_passcode_add,
+    payload_passcode_clear,
+    payload_passcode_delete,
+    payload_passcode_modify,
+)
+from .passcode_list import parse_passcode_list_response, payload_passcode_list
+from .session import (
+    VENDOR,
+    parse_check_admin_response,
+    parse_check_user_time_response,
+    payload_check_admin,
+    payload_check_random,
+    payload_check_user_time,
+    payload_get_aes_key,
+)
+
+__all__ = [
+    "APICMD_LOCK_BY_ADMIN",
+    "APICMD_LOCK_BY_USER",
+    "APICMD_UNLOCK_BY_ADMIN",
+    "APICMD_UNLOCK_BY_USER",
+    "CMD_AUTO_LOCK_MANAGE",
+    "CMD_CHECK_ADMIN",
+    "CMD_CHECK_RANDOM",
+    "CMD_CHECK_USER_TIME",
+    "CMD_GET_AES_KEY",
+    "CMD_GET_DEVICE_PROPERTIES",
+    "CMD_GET_LOCK_TIME",
+    "CMD_GET_OPERATE_LOG",
+    "CMD_GET_PASSCODES",
+    "CMD_INIT_PASSWORDS",
+    "CMD_LOCK",
+    "CMD_MANAGE_FINGERPRINT",
+    "CMD_MANAGE_IC_CARD",
+    "CMD_MANAGE_KEYBOARD_PASSWORD",
+    "CMD_QUERY_STATE",
+    "CMD_RESPONSE",
+    "CMD_SEARCH_DEVICE_FEATURE",
+    "CMD_SET_LOCK_SOUND",
+    "CMD_SWITCH",
+    "CMD_TIME_CALIBRATE",
+    "CMD_UNLOCK",
+    "END_DATE_SENTINEL",
+    "FINGERPRINT_NUMBER_LENGTH",
+    "LOCKED",
+    "RESPONSE_FAILED",
+    "RESPONSE_SUCCESS",
+    "START_DATE_SENTINEL",
+    "UNLOCKED",
+    "VENDOR",
+    "card_id_from_enrollment",
+    "encode_date5",
+    "fingerprint_number_from_enrollment",
+    "parse_auto_lock_limits_response",
+    "parse_auto_lock_response",
+    "parse_card_list_response",
+    "parse_check_admin_response",
+    "parse_check_user_time_response",
+    "parse_device_feature_response",
+    "parse_device_property_clock",
+    "parse_device_property_mac",
+    "parse_device_property_string",
+    "parse_enrollment_response",
+    "parse_fingerprint_list_response",
+    "parse_get_lock_time_response",
+    "parse_lock_sound_response",
+    "parse_lock_status",
+    "parse_operate_log_response",
+    "parse_passcode_list_response",
+    "parse_response_status",
+    "parse_state_battery",
+    "payload_auto_lock_search",
+    "payload_auto_lock_set",
+    "payload_card_delete",
+    "payload_card_list",
+    "payload_card_modify",
+    "payload_check_admin",
+    "payload_check_random",
+    "payload_check_user_time",
+    "payload_credential_add",
+    "payload_credential_clear",
+    "payload_device_property",
+    "payload_fingerprint_delete",
+    "payload_fingerprint_list",
+    "payload_fingerprint_modify",
+    "payload_get_aes_key",
+    "payload_get_lock_sound",
+    "payload_get_lock_time",
+    "payload_operate_log_request",
+    "payload_passcode_add",
+    "payload_passcode_clear",
+    "payload_passcode_delete",
+    "payload_passcode_list",
+    "payload_passcode_modify",
+    "payload_query_state",
+    "payload_search_device_feature",
+    "payload_set_lock_sound",
+    "payload_set_lock_volume",
+    "payload_time_calibrate",
+    "payload_unlock",
+]

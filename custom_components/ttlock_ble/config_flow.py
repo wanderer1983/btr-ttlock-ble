@@ -14,8 +14,6 @@ from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.util import slugify
 
-from ttlock_ble import CLOUD_APPS
-
 from .advertisement import decode_lock_advertisement
 from .api import TtlockBleApiClient
 from .const import CONF_CLOUD_APP, DEFAULT_CLOUD_APP, DOMAIN, LOGGER
@@ -27,13 +25,12 @@ from .exceptions import (
 )
 from .manual_key import TtlockBleManualKey
 from .options_flow import TtlockBleOptionsFlow
+from .sdk import CLOUD_APPS
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
-
-    from ttlock_ble import LockAdvertisement
 
     from .data import (
         TtlockBleConfigData,
@@ -43,6 +40,7 @@ if TYPE_CHECKING:
         TtlockBleStoredKey,
         TtlockBleVerificationInput,
     )
+    from .sdk import LockAdvertisement
 
 
 CONF_VERIFICATION_CODE = "verification_code"

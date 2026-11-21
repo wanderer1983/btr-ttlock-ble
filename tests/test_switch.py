@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 from homeassistant.exceptions import HomeAssistantError
-from ttlock_ble import LockSound, TTLockError
+
+from custom_components.ttlock_ble.sdk import LockSound, TTLockError
 
 
 def _switch_state(hass):

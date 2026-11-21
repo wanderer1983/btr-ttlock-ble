@@ -8,21 +8,19 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import EntityCategory
 from homeassistant.exceptions import HomeAssistantError
 
-from ttlock_ble import TTLockError
-
 from .const import LOGGER
 from .entity import TtlockBleEntity
 from .key_privileges import can_administer
+from .sdk import TTLockError
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from ttlock_ble import VirtualKey
-
     from .connection import TtlockBleConnection
     from .coordinator import TtlockBleDataUpdateCoordinator
     from .data import TtlockBleConfigEntry
+    from .sdk import VirtualKey
 
 
 async def async_setup_entry(

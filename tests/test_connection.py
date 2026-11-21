@@ -10,14 +10,6 @@ import pytest
 from bleak import BleakError
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from ttlock_ble import (
-    DeviceInfo,
-    FingerprintEntry,
-    LockEvent,
-    LockSound,
-    LockState,
-    TTLockError,
-)
 
 from custom_components.ttlock_ble.connection import (
     TtlockBleConnection,
@@ -28,6 +20,14 @@ from custom_components.ttlock_ble.connection import (
     state_signal,
 )
 from custom_components.ttlock_ble.data import TtlockBleLogCursor
+from custom_components.ttlock_ble.sdk import (
+    DeviceInfo,
+    FingerprintEntry,
+    LockEvent,
+    LockSound,
+    LockState,
+    TTLockError,
+)
 
 
 def _log_entry(record_number: int) -> SimpleNamespace:

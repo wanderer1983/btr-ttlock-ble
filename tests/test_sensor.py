@@ -140,9 +140,9 @@ async def test_battery_sensor_updates_from_push_event(
 ) -> None:
     """A push event carrying `battery` updates the sensor without polling."""
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     state = _battery_state(hass)
     assert state.state == "80"
@@ -163,9 +163,9 @@ async def test_battery_sensor_ignores_push_event_without_battery(
 ) -> None:
     """An event with no decoded battery byte must not clobber the last value."""
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     state = _battery_state(hass)
     assert state.state == "80"
@@ -233,9 +233,9 @@ async def test_battery_sensor_follows_a_pushed_rise_over_an_advertisement(
     sample_virtual_key,
 ) -> None:
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LockEvent
 
     from custom_components.ttlock_ble.connection import event_signal
+    from custom_components.ttlock_ble.sdk import LockEvent
 
     state = _battery_state(hass)
     _publish_battery(setup_integration, sample_virtual_key.lockMac, 70, advertised=True)
@@ -535,9 +535,9 @@ async def _record(hass, mac, record_type, *, minute=0, **fields) -> None:
     import datetime as dt
 
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LogEntry
 
     from custom_components.ttlock_ble.connection import log_signal
+    from custom_components.ttlock_ble.sdk import LogEntry
 
     async_dispatcher_send(
         hass,
@@ -586,7 +586,7 @@ async def test_last_unlocked_by_is_unknown_before_any_unlock(
 async def test_last_unlocked_by_names_a_named_fingerprint(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     await _name_fingerprint(hass, sample_virtual_key.lockMac, 2752513, "Alice")
     await _record(
@@ -606,7 +606,7 @@ async def test_last_unlocked_by_names_a_named_fingerprint(
 async def test_last_unlocked_by_falls_back_to_the_fingerprint_number(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     await _record(
         hass,
@@ -621,7 +621,7 @@ async def test_last_unlocked_by_falls_back_to_the_fingerprint_number(
 async def test_last_unlocked_by_a_passcode_shows_its_label_not_its_code(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     await _record(
         hass,
@@ -640,7 +640,7 @@ async def test_last_unlocked_by_a_passcode_shows_its_label_not_its_code(
 async def test_last_unlocked_by_is_unknown_for_a_credential_with_no_identifier(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     await _record(hass, sample_virtual_key.lockMac, LogOperate.LOW_BATTERY_AUTO_UNLOCK)
 
@@ -652,7 +652,7 @@ async def test_last_unlocked_by_is_unknown_for_a_credential_with_no_identifier(
 async def test_last_unlocked_by_names_home_assistant(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     await _record(hass, sample_virtual_key.lockMac, LogOperate.MOBILE_UNLOCK, uid=0)
 
@@ -683,7 +683,7 @@ def _note_unlock(hass, mac, user_name) -> None:
 async def test_last_unlocked_by_names_the_user_behind_home_assistant(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     _note_unlock(hass, sample_virtual_key.lockMac, "Alice")
     await _record(hass, sample_virtual_key.lockMac, LogOperate.MOBILE_UNLOCK, uid=4242)
@@ -696,7 +696,7 @@ async def test_last_unlocked_by_names_the_user_behind_home_assistant(
 async def test_last_unlocked_by_names_home_assistant_for_a_command_with_no_user(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     _note_unlock(hass, sample_virtual_key.lockMac, None)
     await _record(hass, sample_virtual_key.lockMac, LogOperate.MOBILE_UNLOCK, uid=4242)
@@ -707,7 +707,7 @@ async def test_last_unlocked_by_names_home_assistant_for_a_command_with_no_user(
 async def test_last_unlocked_by_is_unknown_for_an_unlock_from_the_official_app(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     _note_unlock(hass, sample_virtual_key.lockMac, "Alice")
     await _record(
@@ -724,7 +724,7 @@ async def test_last_unlocked_by_is_unknown_for_an_unlock_from_the_official_app(
 async def test_last_unlocked_by_ignores_what_is_not_an_unlock(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     await _name_fingerprint(hass, sample_virtual_key.lockMac, 2752513, "Alice")
     await _record(
@@ -751,7 +751,7 @@ async def test_last_unlocked_by_ignores_what_is_not_an_unlock(
 async def test_last_unlocked_by_ignores_an_older_unlock(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     await _record(
         hass,
@@ -777,9 +777,9 @@ async def test_last_unlocked_by_takes_an_undated_unlock(
     hass, setup_integration, sample_virtual_key
 ) -> None:
     from homeassistant.helpers.dispatcher import async_dispatcher_send
-    from ttlock_ble import LogEntry, LogOperate
 
     from custom_components.ttlock_ble.connection import log_signal
+    from custom_components.ttlock_ble.sdk import LogEntry, LogOperate
 
     await _record(
         hass,
@@ -843,7 +843,7 @@ async def test_last_unlocked_by_survives_a_restart(
     mock_cloud,
     mock_ttlock_connection,
 ) -> None:
-    from ttlock_ble import LogOperate
+    from custom_components.ttlock_ble.sdk import LogOperate
 
     await _setup_with_restored(
         hass,

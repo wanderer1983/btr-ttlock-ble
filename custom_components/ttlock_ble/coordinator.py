@@ -29,19 +29,16 @@ from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from ttlock_ble import LockFeature, LockState
-
 from .const import DOMAIN, LOGGER
 from .credential_type import TtlockBleCredentialType
 from .data import TtlockBleKnownCredential
 from .key_privileges import can_administer, may_hold
+from .sdk import LockFeature, LockState
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from homeassistant.core import CALLBACK_TYPE, HomeAssistant
-
-    from ttlock_ble import LockAdvertisement
 
     from .clock_sync_store import TtlockBleClockSyncStore
     from .connection import TtlockBleConnection
@@ -54,6 +51,7 @@ if TYPE_CHECKING:
         TtlockBleLockState,
     )
     from .device_description_store import TtlockBleDeviceDescriptionStore
+    from .sdk import LockAdvertisement
 
 
 LOCK_STATE_LOCKED = 0

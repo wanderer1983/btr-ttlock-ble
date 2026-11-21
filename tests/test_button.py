@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 from homeassistant.exceptions import HomeAssistantError
-from ttlock_ble import FingerprintEntry
 
 from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
 from custom_components.ttlock_ble.data import TtlockBleKnownCredential
+from custom_components.ttlock_ble.sdk import FingerprintEntry
 
 
 def _button_state(hass):
