@@ -15,6 +15,7 @@ from homeassistant.helpers.device_registry import (
 from homeassistant.helpers.device_registry import (
     async_get as async_get_device_registry,
 )
+from homeassistant.loader import async_get_integration
 
 from .advertisement import TtlockBleAdvertisementTracker
 from .clock_sync_store import async_get_clock_sync_store
@@ -25,10 +26,12 @@ from .coordinator import TtlockBleDataUpdateCoordinator
 from .credential_store import async_get_credential_store
 from .data import TtlockBleData, TtlockBleLogCursor
 from .device_description_store import async_get_device_description_store
+from .panel import async_setup_panel
 from .passcode_ledger import TtlockBlePasscodeLedger
 from .record_store import async_get_record_store
 from .sdk import VirtualKey
 from .services import async_setup_services
+from .websocket import async_setup_websocket
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -55,8 +58,11 @@ PLATFORMS: list[Platform] = [
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:  # noqa: ARG001
-    """Register the credential-management actions, once for every entry."""
+    """Register the actions and the sidebar panel, once for every entry."""
     async_setup_services(hass)
+    async_setup_websocket(hass)
+    integration = await async_get_integration(hass, DOMAIN)
+    await async_setup_panel(hass, str(integration.version))
     return True
 
 

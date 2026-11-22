@@ -1,6 +1,10 @@
 {
   "domain": "ttlock_ble",
   "name": "TTLock BLE",
+  "after_dependencies": [
+    "frontend",
+    "panel_custom"
+  ],
   "bluetooth": [
     {
       "connectable": false,
@@ -12,11 +16,13 @@
   ],
   "config_flow": true,
   "dependencies": [
-    "bluetooth"
+    "bluetooth",
+    "http",
+    "websocket_api"
   ],
   "documentation": "https://github.com/wanderer1983/btr-ttlock-ble",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/wanderer1983/btr-ttlock-ble/issues",
   "requirements": [],
-  "version": "3.13.0-wanderer.1"
+  "version": "3.13.0-wanderer.2"
 }

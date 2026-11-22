@@ -34,6 +34,7 @@ from .const import DOMAIN, LOGGER
 from .credential_store import async_get_credential_store
 from .credential_type import TtlockBleCredentialType
 from .data import TtlockBleEnrolledFingerprint, TtlockBleKnownCredential
+from .data.known_credential import passcode_key
 from .key_privileges import can_administer
 from .sdk import (
     EnrollmentStatus,
@@ -41,6 +42,7 @@ from .sdk import (
     KeyboardPwdType,
     TTLockError,
 )
+from .wake import TtlockBleLockAsleepError
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -185,8 +187,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
 def _resolve(call: ServiceCall) -> _Target:
     """Find the loaded lock behind the call's device, refusing a non-admin key."""
-    device_id: str = call.data[ATTR_DEVICE_ID]
-    device = dr.async_get(call.hass).async_get(device_id)
+    return async_resolve_lock(call.hass, call.data[ATTR_DEVICE_ID])
+
+
+@callback
+def async_resolve_lock(hass: HomeAssistant, device_id: str) -> _Target:
+    """Find the loaded lock behind a device, refusing a non-admin key."""
+    device = dr.async_get(hass).async_get(device_id)
     macs = (
         set()
         if device is None
@@ -194,7 +201,7 @@ def _resolve(call: ServiceCall) -> _Target:
             identifier for domain, identifier in device.identifiers if domain == DOMAIN
         }
     )
-    for entry in call.hass.config_entries.async_loaded_entries(DOMAIN):
+    for entry in hass.config_entries.async_loaded_entries(DOMAIN):
         for mac, connection in entry.runtime_data.connections.items():
             if dr.format_mac(mac) not in macs:
                 continue
@@ -239,6 +246,12 @@ async def _async_run[T](target: _Target, action: str, operation: Any) -> T:
         result: T = await target.connection.async_manage(action, operation)
     except TTLockError as error:
         LOGGER.warning("%s on %s failed: %s", action, target.mac, error)
+        if isinstance(error, TtlockBleLockAsleepError):
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="lock_asleep",
+                translation_placeholders={"lock": target.name},
+            ) from error
         raise HomeAssistantError(
             translation_domain=DOMAIN,
             translation_key="credential_action_failed",
@@ -256,7 +269,10 @@ def _not_found(target: _Target, credential: str) -> ServiceValidationError:
 
 
 async def _async_remember(
-    call: ServiceCall, target: _Target, credential: TtlockBleKnownCredential, name: str
+    call: ServiceCall | HomeAssistant,
+    target: _Target,
+    credential: TtlockBleKnownCredential,
+    name: str,
 ) -> None:
     """
     Record a credential the action just created, under the name it was given.
@@ -264,7 +280,7 @@ async def _async_remember(
     Announcing it through the coordinator is what makes the credential
     tracker create its name entity now, not after the next list read.
     """
-    store = await async_get_credential_store(call.hass)
+    store = await async_get_credential_store(_hass_of(call))
     store.async_add(target.mac, credential)
     if name.strip():
         store.async_set_name(
@@ -274,12 +290,18 @@ async def _async_remember(
 
 
 async def _async_forget(
-    call: ServiceCall, target: _Target, credential: TtlockBleKnownCredential
+    call: ServiceCall | HomeAssistant,
+    target: _Target,
+    credential: TtlockBleKnownCredential,
 ) -> None:
     """Drop a credential the action just removed, and with it its name entity."""
-    store = await async_get_credential_store(call.hass)
+    store = await async_get_credential_store(_hass_of(call))
     store.async_remove(target.mac, credential)
     target.entry.runtime_data.coordinator.async_update_listeners()
+
+
+def _hass_of(call: ServiceCall | HomeAssistant) -> HomeAssistant:
+    return call.hass if isinstance(call, ServiceCall) else call
 
 
 def _passcode_window(
@@ -332,6 +354,39 @@ async def _async_delete_passcode(call: ServiceCall) -> None:
     await _async_run(target, SERVICE_DELETE_PASSCODE, _delete)
     await _async_forget(
         call, target, TtlockBleKnownCredential.from_passcode(target.mac, code)
+    )
+
+
+async def async_delete_passcode_by_key(
+    hass: HomeAssistant, device_id: str, key: str
+) -> None:
+    """
+    Delete the passcode stored under `key`, finding its digits on the lock.
+
+    Only a digest of each code is kept, so the panel can name a passcode
+    but not spell it. The lock lists its codes in clear to an admin key,
+    which is enough to find the one whose digest matches. A code the
+    lock does not list (made offline and never typed) cannot be found
+    this way, and has to be deleted by its digits.
+    """
+    target = async_resolve_lock(hass, device_id)
+
+    async def _delete(client: TTLockClient) -> str | None:
+        for entry in await client.get_passcodes():
+            if passcode_key(target.mac, entry.passcode) == key:
+                await client.delete_passcode(entry.passcode, pwd_type=entry.pwd_type)
+                return entry.passcode
+        return None
+
+    deleted: str | None = await _async_run(target, SERVICE_DELETE_PASSCODE, _delete)
+    if deleted is None:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="passcode_not_listed",
+            translation_placeholders={"lock": target.name},
+        )
+    await _async_forget(
+        hass, target, TtlockBleKnownCredential.from_passcode(target.mac, deleted)
     )
 
 

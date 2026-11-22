@@ -223,6 +223,12 @@
     },
     "credential_not_found": {
       "message": "{lock} não tem nenhuma credencial com o número {credential}."
+    },
+    "lock_asleep": {
+      "message": "{lock} está dormindo e não está anunciando, então não pode ser alcançado. Toque nele para acordá-lo e tente novamente."
+    },
+    "passcode_not_listed": {
+      "message": "{lock} não lista essa senha. Exclua-a digitando os dígitos."
     }
   },
   "selector": {

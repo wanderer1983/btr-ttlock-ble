@@ -223,6 +223,12 @@
     },
     "credential_not_found": {
       "message": "{lock} holds no credential numbered {credential}."
+    },
+    "lock_asleep": {
+      "message": "{lock} is asleep and not advertising, so it cannot be reached. Touch it to wake it, then try again."
+    },
+    "passcode_not_listed": {
+      "message": "{lock} does not list that passcode. Delete it by typing its digits instead."
     }
   },
   "selector": {

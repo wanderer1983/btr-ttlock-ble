@@ -223,6 +223,12 @@
     },
     "credential_not_found": {
       "message": "ל-{lock} אין הרשאה שמספרה {credential}."
+    },
+    "lock_asleep": {
+      "message": "{lock} במצב שינה ואינו משדר, ולכן אי אפשר להתחבר אליו. גע בו כדי להעיר אותו ונסה שוב."
+    },
+    "passcode_not_listed": {
+      "message": "{lock} אינו מציג את הקוד הזה. מחק אותו על ידי הקלדת הספרות."
     }
   },
   "selector": {

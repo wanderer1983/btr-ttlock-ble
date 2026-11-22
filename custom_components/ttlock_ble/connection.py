@@ -26,6 +26,7 @@ from .connection_quality import TtlockBleConnectionQuality
 from .const import DOMAIN, LOGGER
 from .data import TtlockBleLogCursor
 from .sdk import TTLockClient, TTLockError
+from .wake import TtlockBleLockAsleepError, async_last_heard
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -467,8 +468,21 @@ class TtlockBleConnection:
         connection's lock, so nothing else talks to the lock meanwhile.
         Failures surface as `TTLockError`, exactly as for lock and unlock
         (see `_async_run_command`); `action` only names the call in them.
+
+        A lock that has gone quiet is refused before any connect attempt:
+        a padlock stops advertising while asleep, and trying anyway only
+        ends in a timeout long after the person at the lock gave up.
         """
         async with self._lock:
+            if not self.is_connected:
+                heard = async_last_heard(self._hass, self._key.lockMac)
+                if heard is not None and heard.asleep:
+                    msg = (
+                        f"the lock is asleep (last heard {heard.seconds_ago:.0f} s ago"
+                        f" via {heard.source_name}); touch it to wake it, then try"
+                        " again"
+                    )
+                    raise TtlockBleLockAsleepError(msg)
             client = await self._async_ensure_connected_locked()
             if client is None:
                 msg = f"Lock {self._key.lockMac} not reachable via Bluetooth"
