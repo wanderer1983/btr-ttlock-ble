@@ -30,6 +30,9 @@ from homeassistant.util.hass_dict import HassKey
 
 from .advertisement import decode_lock_advertisement
 from .const import DOMAIN, LOGGER
+from .credential_store import async_get_credential_store
+from .feature_store import async_get_feature_store
+from .record_store import async_get_record_store
 from .sdk import LockVersion, PairingError, TTLockClient, TTLockError, VirtualKey
 
 if TYPE_CHECKING:
@@ -136,6 +139,27 @@ def _setting_mode_advertisement(
     return advertisement
 
 
+async def async_forget_lock_history(hass: HomeAssistant, mac: str) -> None:
+    """
+    Forget what was kept about a lock that has been reset.
+
+    Credentials, their names and the log cursor are keyed by MAC so they
+    survive a reconfigure; a reset wipes the lock itself, so keeping
+    them would show credentials it no longer holds and skip its first
+    new log records.
+    """
+    (await async_get_credential_store(hass)).async_forget(mac)
+    (await async_get_record_store(hass)).async_forget(mac)
+    await (await async_get_feature_store(hass)).async_forget(mac)
+
+
+def default_lock_name(address: str, advertised: str | None) -> str:
+    """Name a lock by what it advertises, else by the end of its address."""
+    if advertised and advertised.upper() != address.upper():
+        return advertised
+    return f"TTLock {address.replace(':', '')[-6:].upper()}"
+
+
 def async_pairable_locks(
     hass: HomeAssistant, exclude: set[str]
 ) -> list[TtlockBlePairable]:
@@ -149,7 +173,9 @@ def async_pairable_locks(
         if advertisement is None or not advertisement.is_setting_mode:
             continue
         found[mac] = TtlockBlePairable(
-            address=info.address, name=info.name or info.address, rssi=info.rssi
+            address=info.address,
+            name=default_lock_name(info.address, info.name),
+            rssi=info.rssi,
         )
     return sorted(found.values(), key=lambda lock: -lock.rssi)
 

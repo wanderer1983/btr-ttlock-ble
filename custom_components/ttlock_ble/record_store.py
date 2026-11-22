@@ -88,6 +88,16 @@ class TtlockBleRecordStore:
         }
         self._store.async_delay_save(self._snapshot, SAVE_DELAY_SECONDS)
 
+    def async_forget(self, mac: str) -> None:
+        """
+        Drop the cursor for `mac`, as after a factory reset.
+
+        A reset lock numbers its log from the start again, so the ids kept
+        from before would hide its first new records as already reported.
+        """
+        if self._cursors.pop(mac, None) is not None:
+            self._store.async_delay_save(self._snapshot, SAVE_DELAY_SECONDS)
+
     def _snapshot(self) -> dict[str, TtlockBleStoredCursor]:
         """Render the in-memory cursors as the JSON the store writes."""
         return dict(self._cursors)

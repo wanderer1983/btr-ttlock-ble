@@ -48,6 +48,11 @@ class TtlockBleFeatureStore:
         self._features[mac] = feature_value
         await self._store.async_save(self._features)
 
+    async def async_forget(self, mac: str) -> None:
+        """Drop the feature value kept for `mac`."""
+        if self._features.pop(mac, None) is not None:
+            await self._store.async_save(self._features)
+
 
 STORE_KEY: HassKey[TtlockBleFeatureStore] = HassKey(f"{DOMAIN}_feature_store")
 

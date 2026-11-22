@@ -159,6 +159,11 @@ class TtlockBleCredentialStore:
         self._async_save()
         return True
 
+    def async_forget(self, mac: str) -> None:
+        """Drop every credential and name kept for `mac`, as after a factory reset."""
+        if self._locks.pop(mac, None) is not None:
+            self._async_save()
+
     def _credentials(
         self, mac: str, credential_type: TtlockBleCredentialType
     ) -> dict[str, TtlockBleStoredCredential]:

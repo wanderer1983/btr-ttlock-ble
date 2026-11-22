@@ -229,12 +229,10 @@ async def test_pair_from_discovery_creates_the_entry(
         result["flow_id"], {"next_step_id": "pair"}
     )
     assert result["step_id"] == "pair"
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"name": "Garage"}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
     result = await _finish(hass, result)
     assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Garage"
+    assert result["title"] == NAME
     assert result["data"]["paired_locally"] is True
     assert result["data"]["admin_keypad_code"] == "1234567"
     (key,) = result["data"]["keys"]
@@ -257,7 +255,7 @@ async def test_pair_from_the_menu_lists_locks_in_range(
     assert result["step_id"] == "pair"
     assert result["errors"] == {}
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"lock": MAC, "name": ""}
+        result["flow_id"], {"lock": MAC}
     )
     result = await _finish(hass, result)
     assert result["type"] == FlowResultType.CREATE_ENTRY
@@ -480,3 +478,40 @@ async def test_an_account_lock_cannot_be_removed_alone(
         reset=False,
     )
     assert reply["error"]["code"] == "account_lock"
+
+
+def test_default_name_prefers_the_advertised_one() -> None:
+    from custom_components.ttlock_ble.pairing import default_lock_name
+
+    assert default_lock_name(MAC, "P3_ddeeff") == "P3_ddeeff"
+    assert default_lock_name(MAC, None) == "TTLock DDEEFF"
+    assert default_lock_name(MAC, MAC) == "TTLock DDEEFF"
+
+
+async def test_pairing_forgets_what_was_kept_about_the_lock(
+    hass, enable_custom_integrations, lock_in_range, pairing_client
+) -> None:
+    from custom_components.ttlock_ble.credential_store import async_get_credential_store
+    from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
+    from custom_components.ttlock_ble.data import TtlockBleKnownCredential
+    from custom_components.ttlock_ble.record_store import async_get_record_store
+
+    credentials = await async_get_credential_store(hass)
+    credentials.async_replace(
+        MAC,
+        TtlockBleCredentialType.FINGERPRINT,
+        [TtlockBleKnownCredential(TtlockBleCredentialType.FINGERPRINT, "a_1", "1")],
+    )
+    records = await async_get_record_store(hass)
+    records.async_remember(MAC, {1, 2, 3})
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_BLUETOOTH}, data=_info()
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "pair"}
+    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    result = await _finish(hass, result)
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert credentials.known(MAC, TtlockBleCredentialType.FINGERPRINT) is None
+    assert records.seen(MAC) == set()

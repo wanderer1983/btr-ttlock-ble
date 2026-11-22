@@ -841,7 +841,7 @@ async def test_bluetooth_discovery_falls_back_to_the_address(
 ) -> None:
     """A lock advertising no name is still identified by something."""
     result = await _start_discovery(hass, _discovery_info(name=""))
-    assert result["description_placeholders"] == {"name": DISCOVERED_MAC}
+    assert result["description_placeholders"] == {"name": "TTLock DDEEFF"}
 
 
 async def test_bluetooth_discovery_ignores_a_foreign_advertisement(

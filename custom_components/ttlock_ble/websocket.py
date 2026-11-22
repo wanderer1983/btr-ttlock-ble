@@ -28,6 +28,7 @@ from .const import DOMAIN
 from .credential_store import async_get_credential_store
 from .credential_type import TtlockBleCredentialType
 from .key_privileges import can_administer, may_hold
+from .pairing import async_forget_lock_history
 from .sdk import LockFeature, TTLockError
 from .services import async_delete_passcode_by_key, async_resolve_lock
 from .wake import ASLEEP_AFTER_SECONDS, async_last_heard, async_wait_until_heard
@@ -324,7 +325,9 @@ async def _ws_remove_lock(
             )
             return
     if msg["reset"]:
-        # A reset lock comes back in setting mode: let discovery offer it.
+        # A reset lock is a new lock: what was kept about it is stale, and
+        # it comes back in setting mode, so let discovery offer it.
+        await async_forget_lock_history(hass, target.mac)
         async_rediscover_address(hass, target.mac.upper())
     if from_account:
         # The account still lists the lock, and its entry holds the other

@@ -91,8 +91,7 @@
         "title": "Parear uma fechadura com o Home Assistant",
         "description": "O Home Assistant passa a ser o administrador da fechadura e guarda as chaves dela. Coloque a fechadura em modo de pareamento antes: uma fechadura nova já sai assim; uma usada, depois de uma redefinição de fábrica (geralmente um botão de reset ou segurar uma tecla do teclado). Uma fechadura pareada assim não fica em nenhuma conta TTLock, então o app TTLock não consegue abri-la.",
         "data": {
-          "lock": "Fechadura em modo de pareamento",
-          "name": "Nome"
+          "lock": "Fechadura em modo de pareamento"
         }
       }
     },

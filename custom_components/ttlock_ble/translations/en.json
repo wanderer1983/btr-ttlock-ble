@@ -91,8 +91,7 @@
         "title": "Pair a lock with Home Assistant",
         "description": "Home Assistant becomes the lock's admin and keeps its keys. Put the lock in pairing mode first: a new lock is in it out of the box; a used one after a factory reset (usually a reset button or holding a keypad key). A lock paired this way is not on any TTLock account, so the TTLock app cannot open it.",
         "data": {
-          "lock": "Lock in pairing mode",
-          "name": "Name"
+          "lock": "Lock in pairing mode"
         }
       }
     },

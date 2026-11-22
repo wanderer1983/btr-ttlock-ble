@@ -27,9 +27,11 @@ from .exceptions import (
 from .manual_key import TtlockBleManualKey
 from .options_flow import TtlockBleOptionsFlow
 from .pairing import (
+    async_forget_lock_history,
     async_get_pairing_store,
     async_pair_lock,
     async_pairable_locks,
+    default_lock_name,
 )
 from .sdk import CLOUD_APPS, TTLockError
 
@@ -56,7 +58,6 @@ ABORT_ALREADY_CONFIGURED = "already_configured"
 ABORT_NOT_A_LOCK = "not_a_lock"
 ABORT_PAIRING_FAILED = "pairing_failed"
 CONF_LOCK = "lock"
-CONF_NAME = "name"
 DEFAULT_PROTOCOL_TYPE = 5
 DEFAULT_PROTOCOL_VERSION = 3
 DEFAULT_SCENE = 2
@@ -265,7 +266,9 @@ class TtlockBleFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self._abort_if_lock_configured(discovery_info.address)
         self._discovery = discovery_info
         self._discovered_advertisement = advertisement
-        self._discovered_name = discovery_info.name or discovery_info.address
+        self._discovered_name = default_lock_name(
+            discovery_info.address, discovery_info.name
+        )
         self.context["title_placeholders"] = {"name": self._discovered_name}
         return await self.async_step_bluetooth_confirm()
 
@@ -299,7 +302,7 @@ class TtlockBleFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         user_input: dict[str, str] | None = None,
     ) -> config_entries.ConfigFlowResult:
         """
-        Pick the lock to pair, and the name it gets.
+        Pick the lock to pair.
 
         A lock found by discovery is already chosen; otherwise every lock
         in range that advertises setting mode is offered. Nothing is sent
@@ -324,9 +327,9 @@ class TtlockBleFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
                 self._abort_if_lock_configured(address)
                 self._pair_address = address
-                self._pair_name = user_input.get(CONF_NAME, "").strip() or _name_of(
-                    address, pairable, self._discovered_name
-                )
+                # Named after what it advertises; HA's own success dialog is
+                # where the user names the device, and its entities follow.
+                self._pair_name = _name_of(address, pairable, self._discovered_name)
                 return await self.async_step_pairing()
             errors["base"] = "no_lock_in_pairing_mode"
         elif not discovered and not pairable and not waiting:
@@ -355,11 +358,6 @@ class TtlockBleFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     mode=selector.SelectSelectorMode.LIST,
                 )
             )
-        fields[
-            probatio.Optional(
-                CONF_NAME, default=self._discovered_name if discovered else ""
-            )
-        ] = selector.TextSelector()
         return self.async_show_form(
             step_id="pair",
             data_schema=probatio.Schema(fields),
@@ -417,6 +415,7 @@ class TtlockBleFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             "paired_locally": True,
             "admin_keypad_code": self._pairing.admin_keypad_code,
         }
+        await async_forget_lock_history(self.hass, key.lockMac)
         result = self.async_create_entry(title=key.lockAlias, data=dict(data))
         store = await async_get_pairing_store(self.hass)
         await store.async_discard(key.lockMac)
