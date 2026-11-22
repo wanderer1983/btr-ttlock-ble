@@ -19,6 +19,7 @@ from custom_components.ttlock_ble.pairing import (
 )
 from custom_components.ttlock_ble.sdk import (
     LockVersion,
+    PairingError,
     PairingResult,
     TTLockError,
 )
@@ -129,10 +130,50 @@ async def test_pair_lock_stores_the_keys_before_returning(
     pairing_client.disconnect.assert_awaited_once()
     framed_with = pairing_client.for_pairing.call_args.args[1]
     assert framed_with.scene == 1
-    # A second attempt reuses the keys instead of pairing again.
-    again = await async_pair_lock(hass, MAC, "Garage")
+    # Once the lock has left setting mode, the kept keys are what it answers to.
+    with patch(
+        "custom_components.ttlock_ble.pairing.async_last_service_info",
+        return_value=_info(flags=0),
+    ):
+        again = await async_pair_lock(hass, MAC, "Garage")
     assert again == pairing
     pairing_client.initialize.assert_awaited_once()
+
+
+async def test_a_lock_still_in_setting_mode_is_paired_afresh(
+    hass, enable_bluetooth, lock_in_range, pairing_client
+) -> None:
+    store = await async_get_pairing_store(hass)
+    await store.async_put(_pairing())
+    await async_pair_lock(hass, MAC, "Garage")
+    pairing_client.initialize.assert_awaited_once()
+
+
+async def test_a_dropped_first_session_is_retried(
+    hass, enable_bluetooth, lock_in_range, pairing_client
+) -> None:
+    pairing_client.initialize.side_effect = [
+        PairingError("Timed out waiting 6.0s", partial=None),
+        _result(),
+    ]
+    pairing = await async_pair_lock(hass, MAC, "Garage")
+    assert pairing.key.adminPs == "11223344"
+    assert pairing_client.initialize.await_count == 2
+
+
+async def test_an_interrupted_pairing_keeps_the_admin_keys(
+    hass, enable_bluetooth, lock_in_range, pairing_client
+) -> None:
+    pairing_client.initialize.side_effect = PairingError(
+        "link dropped", partial=_result(code="")
+    )
+    with pytest.raises(TTLockError, match="accepting Home Assistant"):
+        await async_pair_lock(hass, MAC, "Garage")
+    pairing_client.initialize.assert_awaited_once()
+    store = await async_get_pairing_store(hass)
+    kept = store.get(MAC)
+    assert kept is not None
+    assert kept.key.adminPs == "11223344"
 
 
 async def test_pair_lock_refuses_a_lock_not_in_setting_mode(
@@ -152,8 +193,9 @@ async def test_pair_lock_wraps_unexpected_errors(
     hass, enable_bluetooth, lock_in_range, pairing_client
 ) -> None:
     pairing_client.initialize.side_effect = RuntimeError("link dropped")
-    with pytest.raises(TTLockError, match="link dropped"):
+    with pytest.raises(TTLockError, match=r"3 attempts.*link dropped"):
         await async_pair_lock(hass, MAC, "Garage")
+    assert pairing_client.initialize.await_count == 3
     store = await async_get_pairing_store(hass)
     assert store.get(MAC) is None
 

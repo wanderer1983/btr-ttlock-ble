@@ -30,12 +30,12 @@ from homeassistant.util.hass_dict import HassKey
 
 from .advertisement import decode_lock_advertisement
 from .const import DOMAIN, LOGGER
-from .sdk import LockVersion, TTLockClient, TTLockError, VirtualKey
+from .sdk import LockVersion, PairingError, TTLockClient, TTLockError, VirtualKey
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
-    from .sdk import LockAdvertisement
+    from .sdk import LockAdvertisement, PairingResult
 
 # Every lock seen so far, paired by the app or by a local bridge, frames
 # its commands with these two; the advertisement does not carry them.
@@ -46,6 +46,8 @@ PAIRING_ORG_ID = 1
 # with the generic header (5, 3, 1, 1, 1); a padlock advertising scene 8
 # left a pairing framed with its own scene unanswered.
 PAIRING_SCENE = 1
+# Sessions opened for one pairing before giving up.
+PAIRING_ATTEMPTS = 3
 
 STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}.pairings"
@@ -158,21 +160,26 @@ async def async_pair_lock(
     """
     Pair the lock at `address`, or return the pairing already made with it.
 
+    A pairing kept from earlier is used once the lock has left setting
+    mode, which is what proves it took. A lock still in setting mode is
+    paired afresh, a few times over: a padlock at the edge of a proxy's
+    range often drops the first session. A session that dropped after
+    the lock was sent its admin keeps those keys, so the next attempt
+    can finish with them.
+
     Raises `TTLockError` when the lock is not in setting mode, cannot be
     reached, or refuses the pairing.
     """
     store = await async_get_pairing_store(hass)
     pending = store.get(address)
-    if pending is not None:
+    advertisement = _setting_mode_advertisement(hass, address)
+    if pending is not None and advertisement is None:
         LOGGER.info("Using the pairing already made with %s", address)
         return pending
-    advertisement = _setting_mode_advertisement(hass, address)
+    if pending is not None:
+        await store.async_discard(address)
     if advertisement is None:
         msg = f"{address} is not advertising that it is in pairing mode"
-        raise TTLockError(msg)
-    device = async_ble_device_from_address(hass, address, connectable=True)
-    if device is None:
-        msg = f"{address} is not reachable through any Bluetooth adapter or proxy"
         raise TTLockError(msg)
     lock_version = LockVersion(
         protocolType=advertisement.protocol_type,
@@ -188,10 +195,57 @@ async def async_pair_lock(
         groupId=PAIRING_GROUP_ID,
         orgId=PAIRING_ORG_ID,
     )
+    last_error: Exception | None = None
+    for attempt in range(1, PAIRING_ATTEMPTS + 1):
+        try:
+            result = await _async_pair_once(hass, address, pairing_version)
+        except PairingError as error:
+            if error.partial is None:
+                last_error = error
+                LOGGER.info("Pairing %s, attempt %d: %s", address, attempt, error)
+                continue
+            pairing = _pairing_from(error.partial, address, name, lock_version)
+            await store.async_put(pairing)
+            msg = (
+                "the lock dropped the link after accepting Home Assistant as its "
+                f"admin ({error}); wake it and pair again to finish"
+            )
+            raise TTLockError(msg) from error
+        except TTLockError as error:
+            last_error = error
+            LOGGER.info("Pairing %s, attempt %d: %s", address, attempt, error)
+            continue
+        pairing = _pairing_from(result, address, name, lock_version)
+        await store.async_put(pairing)
+        LOGGER.info("Paired %s (%s) with Home Assistant", name, address)
+        return pairing
+    msg = f"no answer after {PAIRING_ATTEMPTS} attempts: {last_error}"
+    raise TTLockError(msg) from last_error
+
+
+def _pairing_from(
+    result: PairingResult, address: str, name: str, lock_version: LockVersion
+) -> TtlockBlePairing:
+    return TtlockBlePairing(
+        key=result.to_virtual_key(
+            lock_mac=address.upper(), name=name, lock_version=lock_version
+        ),
+        admin_keypad_code=result.admin_keypad_code,
+    )
+
+
+async def _async_pair_once(
+    hass: HomeAssistant, address: str, pairing_version: LockVersion
+) -> PairingResult:
+    """Open one session with the lock and run the pairing over it."""
+    device = async_ble_device_from_address(hass, address, connectable=True)
+    if device is None:
+        msg = f"{address} is not reachable through any Bluetooth adapter or proxy"
+        raise TTLockError(msg)
     client = TTLockClient.for_pairing(device, pairing_version)
     try:
         await client.connect()
-        result = await client.initialize(dt_util.now().replace(tzinfo=None))
+        return await client.initialize(dt_util.now().replace(tzinfo=None))
     except TTLockError:
         raise
     except Exception as error:
@@ -202,12 +256,3 @@ async def async_pair_lock(
             await client.disconnect()
         except Exception:  # noqa: BLE001 -- a failed disconnect must not hide the result
             LOGGER.debug("Disconnect after pairing %s failed", address, exc_info=True)
-    pairing = TtlockBlePairing(
-        key=result.to_virtual_key(
-            lock_mac=address.upper(), name=name, lock_version=lock_version
-        ),
-        admin_keypad_code=result.admin_keypad_code,
-    )
-    await store.async_put(pairing)
-    LOGGER.info("Paired %s (%s) with Home Assistant", name, address)
-    return pairing

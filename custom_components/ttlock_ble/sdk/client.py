@@ -20,7 +20,7 @@ from .ble.constants import (
 )
 from .constants import EnrollmentStatus, KeyboardPwdType, LockFeature, LockState
 from .crypto import aes_decrypt, hex_key_to_bytes
-from .exceptions import TTLockError
+from .exceptions import PairingError, TTLockError
 from .models import (
     AutoLockLimits,
     CardEntry,
@@ -247,35 +247,60 @@ class TTLockClient:
         `calibrate_time`.
         """
         async with self._command_lock:
-            await self._transport.exchange(
-                self._frame(cmd.CMD_INITIALIZATION, cmd.payload_initialization())
-            )
-            aes_key = await self._pairing_aes_key()
+            try:
+                await self._transport.exchange(
+                    self._frame(cmd.CMD_INITIALIZATION, cmd.payload_initialization())
+                )
+                aes_key = await self._pairing_aes_key()
+            except PairingError:
+                raise
+            except Exception as error:
+                raise PairingError(f"Failed to pair: {error}", partial=None) from error
             self._aes_key = aes_key
 
             admin_ps = cmd.generate_admin_number()
             unlock_key = cmd.generate_admin_number()
-            resp = await self._transport.exchange(
-                self._frame(cmd.CMD_ADD_ADMIN, cmd.payload_add_admin(admin_ps, unlock_key))
+            # From here on the lock may answer to these numbers even if its
+            # reply never arrives, so every failure carries them.
+            partial = PairingResult(
+                aes_key=aes_key,
+                admin_ps=str(admin_ps),
+                unlock_key=str(unlock_key),
+                admin_keypad_code="",
+                features=None,
             )
-            plain = self._decrypt_response(resp, "add_admin")
+            try:
+                resp = await self._transport.exchange(
+                    self._frame(cmd.CMD_ADD_ADMIN, cmd.payload_add_admin(admin_ps, unlock_key))
+                )
+                plain = self._decrypt_response(resp, "add_admin")
+            except Exception as error:
+                raise PairingError(f"Failed to pair: {error}", partial=partial) from error
             try:
                 cmd.parse_add_admin_response(plain)
             except (RuntimeError, ValueError) as error:
-                raise TTLockError(f"Failed to pair: {error}") from error
+                # A clean refusal: the lock kept no admin, so nothing is partial.
+                raise PairingError(f"Failed to pair: {error}", partial=None) from error
 
-            await self._pairing_best_effort(
-                "set the clock",
-                cmd.CMD_TIME_CALIBRATE,
-                cmd.payload_time_calibrate(local_time),
-            )
-            features = await self._pairing_features()
-            admin_keypad_code = await self._pairing_admin_keypad_code(features)
-
-            resp = await self._transport.exchange(
-                self._frame(cmd.CMD_OPERATE_FINISHED, cmd.payload_operate_finished())
-            )
-            self._require_success(self._decrypt_response(resp, "finish_pairing"), "finish pairing")
+            try:
+                await self._pairing_best_effort(
+                    "set the clock",
+                    cmd.CMD_TIME_CALIBRATE,
+                    cmd.payload_time_calibrate(local_time),
+                )
+                features = await self._pairing_features()
+                admin_keypad_code = await self._pairing_admin_keypad_code(features)
+                resp = await self._transport.exchange(
+                    self._frame(cmd.CMD_OPERATE_FINISHED, cmd.payload_operate_finished())
+                )
+                self._require_success(
+                    self._decrypt_response(resp, "finish_pairing"), "finish pairing"
+                )
+            except Exception as error:
+                raise PairingError(
+                    f"Pairing interrupted after the lock accepted its admin: {error}",
+                    partial=partial,
+                ) from error
         return PairingResult(
             aes_key=aes_key,
             admin_ps=str(admin_ps),
@@ -310,7 +335,7 @@ class TTLockClient:
             except (RuntimeError, ValueError) as refused:
                 log.info("Pairing: AES key request %r refused: %s", payload, refused)
                 error = refused
-        raise TTLockError(f"Failed to pair: {error}") from error
+        raise PairingError(f"Failed to pair: {error}", partial=None) from error
 
     async def _pairing_best_effort(self, label: str, command: int, payload: bytes) -> bytes | None:
         """Send one optional pairing command; return its data, `None` on any refusal."""

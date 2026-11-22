@@ -21,6 +21,7 @@ Public API:
     PasscodeEntry     — one keypad passcode (see get_passcodes's scope caveat)
     CyclicSchedule    — the day-of-week/time-window rule behind a CIRCLE passcode
     TTLockError       — raised by `TTLockClient` on BLE / protocol failure
+    PairingError      — a TTLockError from a pairing that stopped part-way
     CloudError        — raised by `TTLockCloud` on a non-success HTTP response
 
 IntEnums:
@@ -42,7 +43,7 @@ from .constants import (
     LogOperate,
     PwdOperateType,
 )
-from .exceptions import CloudError, TTLockError
+from .exceptions import CloudError, PairingError, TTLockError
 from .models import (
     CLOUD_APPS,
     AutoLockLimits,
@@ -87,6 +88,7 @@ __all__ = [
     "LockVolume",
     "LogEntry",
     "LogOperate",
+    "PairingError",
     "PairingResult",
     "PasscodeEntry",
     "PwdOperateType",
