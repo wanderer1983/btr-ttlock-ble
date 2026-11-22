@@ -53,6 +53,7 @@ def _mock_connection(*, query_return=(0, 80), mac="AA:BB:CC:DD:EE:FF") -> MagicM
     conn.async_query_state = AsyncMock(return_value=query_return)
     conn.async_get_operation_log = AsyncMock(return_value=[])
     conn.async_get_device_info = AsyncMock(return_value=None)
+    conn.async_get_features = AsyncMock(return_value=None)
     conn.async_get_lock_time = AsyncMock(return_value=None)
     conn.async_get_lock_sound = AsyncMock(return_value=None)
     conn.async_get_fingerprints = AsyncMock(return_value=None)
@@ -1251,3 +1252,43 @@ async def test_dormant_advertisement_keeps_the_old_reading_timestamp(hass) -> No
     state = coordinator.data["AA:BB:CC:DD:EE:FF"]
     assert state["locked"] is False
     assert state["observed_at"] == 42.0
+
+
+async def test_features_are_learned_once_for_a_key_without_them(
+    hass, setup_integration, mock_ttlock_connection
+) -> None:
+    from unittest.mock import AsyncMock, patch
+
+    from custom_components.ttlock_ble.feature_store import async_get_feature_store
+    from custom_components.ttlock_ble.sdk import DeviceFeatures, LockFeature
+
+    coordinator = setup_integration.runtime_data.coordinator
+    key = mock_ttlock_connection.key
+    key.featureValue = ""
+    key.specialValue = 0
+    mock_ttlock_connection.async_get_features = AsyncMock(
+        return_value=DeviceFeatures(mask=1 << LockFeature.FINGER_PRINT, battery=80)
+    )
+    with patch.object(hass.config_entries, "async_schedule_reload") as reload:
+        await coordinator._async_learn_features(mock_ttlock_connection)
+        await coordinator._async_learn_features(mock_ttlock_connection)
+    mock_ttlock_connection.async_get_features.assert_awaited_once()
+    assert key.has_feature(LockFeature.FINGER_PRINT)
+    assert not key.has_feature(LockFeature.PASSCODE)
+    reload.assert_called_once_with(setup_integration.entry_id)
+    store = await async_get_feature_store(hass)
+    fresh = type(key).from_dict({**key.to_dict(), "featureValue": ""})
+    store.apply(fresh)
+    assert fresh.has_feature(LockFeature.FINGER_PRINT)
+
+
+async def test_features_are_not_asked_when_the_key_has_them(
+    hass, setup_integration, mock_ttlock_connection
+) -> None:
+    from unittest.mock import AsyncMock
+
+    coordinator = setup_integration.runtime_data.coordinator
+    mock_ttlock_connection.key.featureValue = "4"
+    mock_ttlock_connection.async_get_features = AsyncMock()
+    await coordinator._async_learn_features(mock_ttlock_connection)
+    mock_ttlock_connection.async_get_features.assert_not_awaited()

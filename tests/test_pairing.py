@@ -402,6 +402,28 @@ async def test_remove_without_reset_only_removes(
     assert hass.config_entries.async_get_entry(local_entry.entry_id) is None
 
 
+async def test_an_account_lock_can_be_reset_but_stays(
+    hass, hass_ws_client, setup_integration, sample_stored_key, mock_ttlock_connection
+) -> None:
+    client = MagicMock(factory_reset=AsyncMock())
+
+    async def _manage(_action, operation):
+        return await operation(client)
+
+    mock_ttlock_connection.async_manage = AsyncMock(side_effect=_manage)
+    device_id = _device_id(hass, setup_integration, sample_stored_key["lockMac"])
+    reply = await _ws(
+        hass_ws_client,
+        hass,
+        type=f"{DOMAIN}/remove_lock",
+        device_id=device_id,
+        reset=True,
+    )
+    assert reply["result"] == {"removed": False}
+    client.factory_reset.assert_awaited_once()
+    assert hass.config_entries.async_get_entry(setup_integration.entry_id) is not None
+
+
 async def test_an_account_lock_cannot_be_removed_alone(
     hass, hass_ws_client, setup_integration, sample_stored_key
 ) -> None:
@@ -411,6 +433,6 @@ async def test_an_account_lock_cannot_be_removed_alone(
         hass,
         type=f"{DOMAIN}/remove_lock",
         device_id=device_id,
-        reset=True,
+        reset=False,
     )
     assert reply["error"]["code"] == "account_lock"

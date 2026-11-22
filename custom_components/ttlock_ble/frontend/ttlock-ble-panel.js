@@ -361,6 +361,7 @@ class TtlockBlePanel extends HTMLElement {
   }
 
   _remove(lock) {
+    if (lock.from_account) return this._resetAccountLock(lock);
     const local = lock.paired_locally;
     this._openDialog({
       title: `Remove ${lock.name}?`,
@@ -397,6 +398,24 @@ class TtlockBlePanel extends HTMLElement {
         if (reset) this._onLock(lock, "Reset and remove", "Touch the lock to wake it", work);
         else this._onLock(lock, "Remove", "", work, { skipWake: true });
       },
+    });
+  }
+
+  _resetAccountLock(lock) {
+    this._openDialog({
+      title: `Factory-reset ${lock.name}?`,
+      note:
+        "Wipes every key, passcode, card and fingerprint on the lock and puts it back in pairing mode, " +
+        "so Home Assistant can pair it. It comes from your TTLock account, which still lists it: " +
+        "delete it in the TTLock app afterwards, then reconfigure the account entry here.",
+      fields: [],
+      submit: "Factory reset",
+      danger: true,
+      onSubmit: () =>
+        this._onLock(lock, "Factory reset", "Touch the lock to wake it", async () => {
+          await this._hass.callWS({ type: `${DOMAIN}/remove_lock`, device_id: lock.device_id, reset: true });
+          return "Reset. It is in pairing mode: use Add a lock to pair it";
+        }),
     });
   }
 
@@ -593,7 +612,7 @@ class TtlockBlePanel extends HTMLElement {
           ${lock.admin ? `<button data-act="read" ${ids} ${dis}>Read from lock</button>` : ""}
           ${lock.admin_keypad_code ? `<button class="text" data-act="show-code" ${ids}>Keypad admin code</button>` : ""}
           <span class="spacer"></span>
-          ${lock.removable ? `<button class="text danger" data-act="remove" ${ids} ${dis}>Remove</button>` : ""}
+          ${lock.admin ? `<button class="text danger" data-act="remove" ${ids} ${dis}>${lock.removable ? "Remove" : "Factory reset"}</button>` : ""}
         </div>
         ${this._renderJob(lock)}
         ${sections}

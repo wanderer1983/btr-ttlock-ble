@@ -128,6 +128,7 @@ def _describe_lock(
         # An account entry holds every lock of the account, so one of them
         # cannot leave on its own: it goes when the account no longer has it.
         "removable": "username" not in entry.data,
+        "from_account": "username" in entry.data,
         "paired_locally": bool(entry.data.get("paired_locally")),
         "admin_keypad_code": entry.data.get("admin_keypad_code") or None,
     }
@@ -292,13 +293,17 @@ async def _ws_remove_lock(
     """
     Remove a lock's entry, factory-resetting the lock first when asked.
 
+    A lock from a TTLock account can only be reset here: its entry holds
+    the whole account, so it leaves once the lock is deleted in the app.
+
     The reset runs before the entry goes: the entry holds the only keys
     that can reset the lock, so a reset that fails leaves both in place.
     """
     target = _target_or_error(hass, connection, msg)
     if target is None:
         return
-    if "username" in target.entry.data:
+    from_account = "username" in target.entry.data
+    if from_account and not msg["reset"]:
         connection.send_error(
             msg["id"],
             "account_lock",
@@ -317,5 +322,11 @@ async def _ws_remove_lock(
                 msg["id"], "reset_failed", f"{target.name} was not reset: {error}"
             )
             return
+    if from_account:
+        # The account still lists the lock, and its entry holds the other
+        # locks too: the entry stays until the lock is deleted in the app
+        # and the account is synced again.
+        connection.send_result(msg["id"], {"removed": False})
+        return
     await hass.config_entries.async_remove(target.entry.entry_id)
-    connection.send_result(msg["id"])
+    connection.send_result(msg["id"], {"removed": True})

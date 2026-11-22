@@ -176,6 +176,7 @@ def mock_ttlock_connection(sample_virtual_key: VirtualKey) -> Generator[MagicMoc
     instance.async_query_state = AsyncMock(return_value=(0, 80))
     instance.async_get_operation_log = AsyncMock(return_value=[])
     instance.async_get_device_info = AsyncMock(return_value=None)
+    instance.async_get_features = AsyncMock(return_value=None)
     instance.async_get_lock_time = AsyncMock(return_value=None)
     instance.async_get_lock_sound = AsyncMock(return_value=None)
     instance.async_get_fingerprints = AsyncMock(return_value=None)

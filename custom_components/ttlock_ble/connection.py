@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 
     from .sdk import (
         CardEntry,
+        DeviceFeatures,
         DeviceInfo,
         FingerprintEntry,
         LockEvent,
@@ -217,6 +218,25 @@ class TtlockBleConnection:
                     "get_device_info failed for %s: %s",
                     self._key.lockMac,
                     exc,
+                )
+                return None
+
+    async def async_get_features(self) -> DeviceFeatures | None:
+        """
+        Read the feature bits the lock reports about itself.
+
+        Returns `None` when the lock is out of range or refused: the
+        caller keeps assuming every credential type, as before.
+        """
+        async with self._lock:
+            client = await self._async_ensure_connected_locked()
+            if client is None:
+                return None
+            try:
+                return await client.get_device_features()
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.debug(
+                    "get_device_features failed for %s: %s", self._key.lockMac, exc
                 )
                 return None
 

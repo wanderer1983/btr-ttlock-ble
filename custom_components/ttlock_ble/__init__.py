@@ -26,6 +26,7 @@ from .coordinator import TtlockBleDataUpdateCoordinator
 from .credential_store import async_get_credential_store
 from .data import TtlockBleData, TtlockBleLogCursor
 from .device_description_store import async_get_device_description_store
+from .feature_store import async_get_feature_store
 from .panel import async_setup_panel
 from .passcode_ledger import TtlockBlePasscodeLedger
 from .record_store import async_get_record_store
@@ -119,6 +120,9 @@ async def async_setup_entry(
     _async_prune_stale_devices(hass, entry, config)
     stored_keys: list[TtlockBleStoredKey] = list(config["keys"])
     virtual_keys = [VirtualKey.from_dict(dict(k)) for k in stored_keys]
+    feature_store = await async_get_feature_store(hass)
+    for key in virtual_keys:
+        feature_store.apply(key)
 
     permanent_connection = bool(entry.options.get(CONF_PERMANENT_CONNECTION, False))
     record_store = await async_get_record_store(hass)

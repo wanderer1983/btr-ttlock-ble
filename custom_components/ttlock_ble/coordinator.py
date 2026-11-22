@@ -32,6 +32,7 @@ from homeassistant.util import dt as dt_util
 from .const import DOMAIN, LOGGER
 from .credential_type import TtlockBleCredentialType
 from .data import TtlockBleKnownCredential
+from .feature_store import async_get_feature_store
 from .key_privileges import can_administer, may_hold
 from .sdk import LockFeature, LockState
 
@@ -125,6 +126,7 @@ class TtlockBleDataUpdateCoordinator(DataUpdateCoordinator["TtlockBleCoordinator
         self._clock_syncs = clock_syncs
         self._credentials = credentials
         self._described: set[str] = set()
+        self._features_checked: set[str] = set()
         self._sound_enabled: dict[str, bool] = {}
         self._sound_checked_at: dict[str, float] = {}
         self._credentials_checked_at: dict[str, float] = {}
@@ -412,6 +414,7 @@ class TtlockBleDataUpdateCoordinator(DataUpdateCoordinator["TtlockBleCoordinator
             # which is the whole reason the clock check rides here. A
             # failure above must not reach the retry bookkeeping below
             # as if the log itself had failed.
+            await self._async_learn_features(connection)
             await self._async_align_clock(connection)
             await self._async_read_sound(connection)
             await self._async_read_credentials(connection)
@@ -460,6 +463,7 @@ class TtlockBleDataUpdateCoordinator(DataUpdateCoordinator["TtlockBleCoordinator
                 exc_info=True,
             )
         await self._async_describe(connection)
+        await self._async_learn_features(connection)
         await self._async_align_clock(connection)
         await self._async_read_sound(connection)
         await self._async_read_credentials(connection)
@@ -495,6 +499,31 @@ class TtlockBleDataUpdateCoordinator(DataUpdateCoordinator["TtlockBleCoordinator
             return
         self._descriptions.async_remember(mac, description)
         self._async_apply_description(mac, description)
+
+    async def _async_learn_features(self, connection: TtlockBleConnection) -> None:
+        """
+        Ask a lock whose key names no features what it supports, once.
+
+        Without them every credential type is offered, so a padlock with
+        neither keypad nor card reader shows passcodes and cards it can
+        never hold. The answer is kept, and the entry reloaded once so
+        its entities and the panel follow it.
+        """
+        key = connection.key
+        if key.feature_mask != 0 or not can_administer(key):
+            return
+        if key.lockMac in self._features_checked:
+            return
+        self._features_checked.add(key.lockMac)
+        features = await connection.async_get_features()
+        if features is None or features.mask == 0:
+            return
+        value = f"{features.mask:X}"
+        LOGGER.info("Learned the features of %s: %s", key.lockMac, value)
+        key.featureValue = value
+        store = await async_get_feature_store(self.hass)
+        await store.async_remember(key.lockMac, value)
+        self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
 
     async def _async_align_clock(self, connection: TtlockBleConnection) -> None:
         """
