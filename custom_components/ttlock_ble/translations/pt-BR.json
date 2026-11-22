@@ -6,6 +6,7 @@
         "title": "Configurar TTLock BLE",
         "description": "Escolha como este Home Assistant obtém as chaves das suas fechaduras.",
         "menu_options": {
+          "pair": "Parear uma fechadura em modo de pareamento",
           "cloud": "Entrar com uma conta TTLock",
           "manual": "Inserir uma chave manualmente"
         }
@@ -14,6 +15,7 @@
         "title": "Configurar TTLock BLE",
         "description": "**{name}** foi encontrada por Bluetooth. O endereço e o cabeçalho de protocolo já são conhecidos; faltam as chaves, que ficam em uma conta TTLock ou no que tiver inicializado a fechadura localmente.",
         "menu_options": {
+          "pair": "Parear uma fechadura em modo de pareamento",
           "cloud": "Entrar em uma conta TTLock",
           "manual": "Informar a chave desta fechadura manualmente"
         }
@@ -84,6 +86,14 @@
           "group_id": "ID do grupo",
           "org_id": "ID da organização"
         }
+      },
+      "pair": {
+        "title": "Parear uma fechadura com o Home Assistant",
+        "description": "O Home Assistant passa a ser o administrador da fechadura e guarda as chaves dela. Coloque a fechadura em modo de pareamento antes: uma fechadura nova já sai assim; uma usada, depois de uma redefinição de fábrica (geralmente um botão de reset ou segurar uma tecla do teclado). Uma fechadura pareada assim não fica em nenhuma conta TTLock, então o app TTLock não consegue abri-la.",
+        "data": {
+          "lock": "Fechadura em modo de pareamento",
+          "name": "Nome"
+        }
       }
     },
     "error": {
@@ -97,14 +107,19 @@
       "invalid_unlock_key": "A chave de destravamento aceita apenas dígitos.",
       "invalid_admin_passcode": "A senha de administrador aceita apenas dígitos.",
       "protocol_mismatch": "A fechadura está anunciando um tipo de protocolo, versão ou cena diferente do que foi informado. Confira os valores nos dados da sua fechadura.",
-      "lock_not_in_account": "Esta conta não possui chave para a fechadura encontrada. Entre com a conta dona dela ou informe a chave manualmente."
+      "lock_not_in_account": "Esta conta não possui chave para a fechadura encontrada. Entre com a conta dona dela ou informe a chave manualmente.",
+      "no_lock_in_pairing_mode": "Nenhuma fechadura em modo de pareamento está ao alcance de um adaptador ou proxy Bluetooth. Coloque a fechadura em modo de pareamento, acorde-a e tente de novo."
     },
     "abort": {
       "already_configured": "Esta fechadura ou conta já está configurada.",
       "reauth_successful": "Re-autenticação concluída com sucesso.",
       "reconfigure_successful": "Reconfiguração concluída com sucesso.",
       "wrong_account": "As credenciais informadas pertencem a outra conta TTLock. Autentique novamente com a conta que originou esta entrada.",
-      "not_a_lock": "Este dispositivo Bluetooth não é uma fechadura TTLock."
+      "not_a_lock": "Este dispositivo Bluetooth não é uma fechadura TTLock.",
+      "pairing_failed": "A fechadura não foi pareada: {error}"
+    },
+    "progress": {
+      "pairing": "Pareando **{name}**. Mantenha a fechadura acordada e ao alcance de um proxy Bluetooth; isso leva alguns segundos."
     }
   },
   "options": {

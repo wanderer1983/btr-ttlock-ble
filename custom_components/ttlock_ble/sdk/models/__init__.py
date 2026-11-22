@@ -16,6 +16,7 @@ from .lock_event import LockEvent
 from .lock_sound import LockSound
 from .lock_version import LockVersion
 from .log_entry import LogEntry
+from .pairing_result import PairingResult
 from .passcode_entry import PasscodeEntry
 from .site_info import SiteInfo
 from .virtual_key import VirtualKey
@@ -36,6 +37,7 @@ __all__ = [
     "LockSound",
     "LockVersion",
     "LogEntry",
+    "PairingResult",
     "PasscodeEntry",
     "SiteInfo",
     "VirtualKey",

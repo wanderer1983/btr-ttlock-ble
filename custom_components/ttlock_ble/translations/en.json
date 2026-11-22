@@ -6,6 +6,7 @@
         "title": "Set up TTLock BLE",
         "description": "Choose how this Home Assistant gets the keys for your locks.",
         "menu_options": {
+          "pair": "Pair a lock that is in pairing mode",
           "cloud": "Sign in to a TTLock account",
           "manual": "Enter a lock key manually"
         }
@@ -14,6 +15,7 @@
         "title": "Set up TTLock BLE",
         "description": "**{name}** was found over Bluetooth. Its address and protocol header are already known; what is still missing are its keys, which live either in a TTLock account or in whatever provisioned the lock locally.",
         "menu_options": {
+          "pair": "Pair a lock that is in pairing mode",
           "cloud": "Sign in to a TTLock account",
           "manual": "Enter this lock's key manually"
         }
@@ -84,6 +86,14 @@
           "group_id": "Group ID",
           "org_id": "Organisation ID"
         }
+      },
+      "pair": {
+        "title": "Pair a lock with Home Assistant",
+        "description": "Home Assistant becomes the lock's admin and keeps its keys. Put the lock in pairing mode first: a new lock is in it out of the box; a used one after a factory reset (usually a reset button or holding a keypad key). A lock paired this way is not on any TTLock account, so the TTLock app cannot open it.",
+        "data": {
+          "lock": "Lock in pairing mode",
+          "name": "Name"
+        }
       }
     },
     "error": {
@@ -97,14 +107,19 @@
       "invalid_unlock_key": "The unlock key must be digits only.",
       "invalid_admin_passcode": "The admin passcode must be digits only.",
       "protocol_mismatch": "The lock is broadcasting a different protocol type, version or scene than the one entered. Check the values against your lock data.",
-      "lock_not_in_account": "This account holds no key for the lock that was found. Sign in with the account that owns it, or enter its key manually."
+      "lock_not_in_account": "This account holds no key for the lock that was found. Sign in with the account that owns it, or enter its key manually.",
+      "no_lock_in_pairing_mode": "No lock in pairing mode is in range of a Bluetooth adapter or proxy. Put the lock in pairing mode, wake it, and try again."
     },
     "abort": {
       "already_configured": "This lock or account is already configured.",
       "reauth_successful": "Re-authentication was successful.",
       "reconfigure_successful": "Reconfiguration was successful.",
       "wrong_account": "The credentials entered belong to a different TTLock account. Re-authenticate with the account this entry was created from.",
-      "not_a_lock": "This Bluetooth device is not a TTLock lock."
+      "not_a_lock": "This Bluetooth device is not a TTLock lock.",
+      "pairing_failed": "The lock was not paired: {error}"
+    },
+    "progress": {
+      "pairing": "Pairing **{name}**. Keep the lock awake and within reach of a Bluetooth proxy; this takes a few seconds."
     }
   },
   "options": {

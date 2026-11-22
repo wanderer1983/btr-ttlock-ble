@@ -18,7 +18,7 @@ from .ble.constants import (
     DEVICE_INFO_SERIAL_NUMBER_CHAR,
     DEVICE_INFO_SOFTWARE_REVISION_CHAR,
 )
-from .constants import EnrollmentStatus, KeyboardPwdType, LockState
+from .constants import EnrollmentStatus, KeyboardPwdType, LockFeature, LockState
 from .crypto import aes_decrypt, hex_key_to_bytes
 from .exceptions import TTLockError
 from .models import (
@@ -31,7 +31,9 @@ from .models import (
     LockEvent,
     LockSound,
     LogEntry,
+    PairingResult,
     PasscodeEntry,
+    VirtualKey,
 )
 from .protocol import Frame
 
@@ -42,7 +44,7 @@ if TYPE_CHECKING:
     from bleak import BleakClient
     from bleak.backends.device import BLEDevice
 
-    from .models import VirtualKey
+    from .models import LockVersion
 
     DisconnectedCallback = Callable[[BleakClient], None]
     EventListener = Callable[[LockEvent], None]
@@ -195,6 +197,174 @@ class TTLockClient:
             ps = await self._check_user_time()
             await self._control_lock(cmd.CMD_LOCK, ps, "lock")
         self._keep_alive.restart()
+
+    @classmethod
+    def for_pairing(
+        cls,
+        device: BLEDevice,
+        lock_version: LockVersion,
+        *,
+        disconnected_callback: DisconnectedCallback | None = None,
+    ) -> TTLockClient:
+        """Build a client for a lock in setting mode, ready for `initialize`.
+
+        A lock that is not paired answers under a default AES key every
+        unpaired lock shares, and holds no admin yet; `lock_version` is
+        the frame header it advertises. Nothing else on the key is read
+        before `initialize` replaces it.
+        """
+        key = VirtualKey(
+            keyId=0,
+            lockId=0,
+            lockMac=device.address,
+            lockAlias=device.name or device.address,
+            lockName=device.name or device.address,
+            lockVersion=lock_version,
+            aesKeyStr=cmd.DEFAULT_AES_KEY.hex(),
+            unlockKey="",
+            lockFlagPos=0,
+            timezoneRawOffSet=0,
+        )
+        return cls(
+            key,
+            device=device,
+            disconnected_callback=disconnected_callback,
+            keep_alive_after_command=0,
+        )
+
+    async def initialize(self, local_time: dt.datetime) -> PairingResult:
+        """Pair a lock in setting mode, making this client its admin.
+
+        The lock hands over its AES key, then accepts an admin password
+        and unlock key chosen here; from then on it answers only to
+        them, so the returned `PairingResult` must be kept - without it
+        the lock can only be reset by hand. Setting the clock, reading
+        the features and the keypad admin code are best effort: a lock
+        that refuses one is still paired. The closing command takes the
+        lock out of setting mode.
+
+        `local_time` is the wall clock the lock should keep, as for
+        `calibrate_time`.
+        """
+        async with self._command_lock:
+            await self._transport.exchange(
+                self._frame(cmd.CMD_INITIALIZATION, cmd.payload_initialization())
+            )
+            aes_key = await self._pairing_aes_key()
+            self._aes_key = aes_key
+
+            admin_ps = cmd.generate_admin_number()
+            unlock_key = cmd.generate_admin_number()
+            resp = await self._transport.exchange(
+                self._frame(cmd.CMD_ADD_ADMIN, cmd.payload_add_admin(admin_ps, unlock_key))
+            )
+            plain = self._decrypt_response(resp, "add_admin")
+            try:
+                cmd.parse_add_admin_response(plain)
+            except (RuntimeError, ValueError) as error:
+                raise TTLockError(f"Failed to pair: {error}") from error
+
+            await self._pairing_best_effort(
+                "set the clock",
+                cmd.CMD_TIME_CALIBRATE,
+                cmd.payload_time_calibrate(local_time),
+            )
+            features = await self._pairing_features()
+            admin_keypad_code = await self._pairing_admin_keypad_code(features)
+
+            resp = await self._transport.exchange(
+                self._frame(cmd.CMD_OPERATE_FINISHED, cmd.payload_operate_finished())
+            )
+            self._require_success(self._decrypt_response(resp, "finish_pairing"), "finish pairing")
+        return PairingResult(
+            aes_key=aes_key,
+            admin_ps=str(admin_ps),
+            unlock_key=str(unlock_key),
+            admin_keypad_code=admin_keypad_code,
+            features=features,
+        )
+
+    async def factory_reset(self) -> None:
+        """Reset the lock to factory state: every key, code, card and fingerprint goes.
+
+        Admin-gated. The lock confirms before it wipes itself and drops
+        the link; a reset it did not confirm raises, since the keys this
+        client holds may still be the only way into the lock.
+        """
+        async with self._command_lock:
+            await self._admin_handshake()
+            resp = await self._transport.exchange(
+                self._frame(cmd.CMD_RESET_LOCK, cmd.payload_reset_lock())
+            )
+            plain = self._decrypt_response(resp, "factory_reset")
+            self._require_success(plain, "factory reset")
+
+    async def _pairing_aes_key(self) -> bytes:
+        """Ask the lock for its AES key: `SCIENER` first, then the vendor token."""
+        error: Exception | None = None
+        for payload in (cmd.payload_pairing_aes_key(), cmd.payload_get_aes_key()):
+            resp = await self._transport.exchange(self._frame(cmd.CMD_GET_AES_KEY, payload))
+            plain = self._decrypt_response(resp, "get_aes_key")
+            try:
+                return cmd.parse_aes_key_response(plain)
+            except (RuntimeError, ValueError) as refused:
+                log.info("Pairing: AES key request %r refused: %s", payload, refused)
+                error = refused
+        raise TTLockError(f"Failed to pair: {error}") from error
+
+    async def _pairing_best_effort(self, label: str, command: int, payload: bytes) -> bytes | None:
+        """Send one optional pairing command; return its data, `None` on any refusal."""
+        try:
+            resp = await self._transport.exchange(self._frame(command, payload))
+            plain = self._decrypt_response(resp, label)
+            _echo, status, data = self._parse_response_envelope(plain, label)
+        except TTLockError as error:
+            log.warning("Pairing: could not %s: %s", label, error)
+            return None
+        if status != cmd.RESPONSE_SUCCESS:
+            log.warning("Pairing: lock refused to %s: %s", label, data.hex())
+            return None
+        return plain
+
+    async def _pairing_features(self) -> DeviceFeatures | None:
+        plain = await self._pairing_best_effort(
+            "read its features",
+            cmd.CMD_SEARCH_DEVICE_FEATURE,
+            cmd.payload_search_device_feature(),
+        )
+        if plain is None:
+            return None
+        try:
+            return cmd.parse_device_feature_response(plain)
+        except (RuntimeError, ValueError) as error:
+            log.warning("Pairing: unreadable feature list: %s", error)
+            return None
+
+    async def _pairing_admin_keypad_code(self, features: DeviceFeatures | None) -> str:
+        """Read the keypad admin code, or set a new one where a keypad may need it.
+
+        A lock that reports its own code keeps it. Otherwise one is set,
+        as the app does for V3 locks - but only on a lock that may have a
+        keypad, since a padlock with none has no use for it.
+        """
+        if features is not None and features.supports(LockFeature.GET_ADMIN_CODE):
+            plain = await self._pairing_best_effort(
+                "read the keypad admin code",
+                cmd.CMD_GET_ADMIN_CODE,
+                cmd.payload_get_admin_code(),
+            )
+            code = cmd.parse_admin_code_response(plain) if plain is not None else ""
+            if code:
+                return code
+        if features is not None and not features.supports(LockFeature.PASSCODE):
+            return ""
+        code = cmd.generate_admin_keypad_code()
+        plain = await self._pairing_best_effort(
+            "set the keypad admin code",
+            cmd.CMD_SET_ADMIN_KEYPAD_CODE,
+            cmd.payload_set_admin_keypad_code(code),
+        )
+        return code if plain is not None else ""
 
     async def calibrate_time(self, local_time: dt.datetime) -> None:
         """Push a wall-clock time to the lock's RTC, in the lock's local time.

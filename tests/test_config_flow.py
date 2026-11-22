@@ -79,10 +79,10 @@ def _existing_entry(hass, *, username: str = "user@example.com") -> MockConfigEn
 # --- User step -------------------------------------------------------------
 
 
-async def test_step_user_offers_both_routes(hass, enable_custom_integrations) -> None:
+async def test_step_user_offers_every_route(hass, enable_custom_integrations) -> None:
     result = await _start_menu(hass)
     assert result["type"] == FlowResultType.MENU
-    assert result["menu_options"] == ["cloud", "manual"]
+    assert result["menu_options"] == ["pair", "cloud", "manual"]
 
 
 async def test_step_cloud_shows_form(hass, enable_custom_integrations) -> None:

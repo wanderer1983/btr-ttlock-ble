@@ -135,12 +135,12 @@ class TtlockBlePanel extends HTMLElement {
   }
 
   // Run `work` once the lock is awake, reporting progress on its card.
-  async _onLock(lock, title, wakeHint, work) {
+  async _onLock(lock, title, wakeHint, work, { skipWake = false } = {}) {
     if (this._jobs[lock.device_id]?.state === "running") return;
     this._setJob(lock, { title, state: "running", lines: [], kind: null });
     try {
       const heard = this._heardNow(lock);
-      if (heard === null || heard > AWAKE_NOW_S) {
+      if (!skipWake && (heard === null || heard > AWAKE_NOW_S)) {
         this._say(lock, wakeHint, "action");
         const { awake } = await this._hass.callWS({
           type: `${DOMAIN}/wait_awake`,
@@ -353,6 +353,64 @@ class TtlockBlePanel extends HTMLElement {
     });
   }
 
+  // Pairing runs in Home Assistant's own add-integration dialog, which
+  // lists the locks in pairing mode and keeps the keys if it is closed.
+  _addLock() {
+    window.history.pushState(null, "", "/_my_redirect/config_flow_start?domain=" + DOMAIN);
+    window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+  }
+
+  _remove(lock) {
+    const local = lock.paired_locally;
+    this._openDialog({
+      title: `Remove ${lock.name}?`,
+      fields: [
+        {
+          id: "how",
+          type: "radio",
+          label: "How",
+          value: local ? "reset" : "forget",
+          options: [
+            {
+              value: "reset",
+              label: "Factory-reset the lock, then remove it",
+              note: "Wipes every key, passcode, card and fingerprint on the lock and puts it back in pairing mode, ready for this or any other app.",
+            },
+            {
+              value: "forget",
+              label: "Remove from Home Assistant only",
+              note: local
+                ? "The lock stays paired to keys that are then gone: only its reset button gets it back."
+                : "The lock keeps its pairing and credentials; you can add it again with the same key.",
+            },
+          ],
+        },
+      ],
+      submit: "Remove",
+      danger: true,
+      onSubmit: (v) => {
+        const reset = v.how === "reset";
+        const work = async () => {
+          await this._hass.callWS({ type: `${DOMAIN}/remove_lock`, device_id: lock.device_id, reset });
+          return reset ? "Reset and removed" : "Removed";
+        };
+        if (reset) this._onLock(lock, "Reset and remove", "Touch the lock to wake it", work);
+        else this._onLock(lock, "Remove", "", work, { skipWake: true });
+      },
+    });
+  }
+
+  _showKeypadCode(lock) {
+    this._openDialog({
+      title: `Keypad admin code for ${lock.name}`,
+      note: `${lock.admin_keypad_code}. Set while pairing; it opens the lock and its keypad settings, so keep it private.`,
+      fields: [],
+      submit: "Close",
+      noCancel: true,
+      onSubmit: () => {},
+    });
+  }
+
   // ---- dialog -------------------------------------------------------------
 
   _openDialog(spec) {
@@ -364,8 +422,17 @@ class TtlockBlePanel extends HTMLElement {
         <h2>${esc(spec.title)}</h2>
         ${spec.note ? `<p class="note">${esc(spec.note)}</p>` : ""}
         ${spec.fields
-          .map(
-            (f) => `
+          .map((f) =>
+            f.type === "radio"
+              ? `<fieldset><legend>${esc(f.label)}</legend>${f.options
+                  .map(
+                    (o) => `
+            <label class="choice"><input type="radio" name="${esc(f.id)}" value="${esc(o.value)}"
+              ${o.value === f.value ? "checked" : ""}><span><strong>${esc(o.label)}</strong>
+              <span class="note">${esc(o.note || "")}</span></span></label>`,
+                  )
+                  .join("")}</fieldset>`
+              : `
           <label>${esc(f.label)}
             <input name="${esc(f.id)}" type="${esc(f.type || "text")}" value="${esc(f.value || "")}"
               ${f.pattern ? `pattern="${esc(f.pattern)}" inputmode="numeric" autocomplete="off"` : ""}
@@ -375,7 +442,7 @@ class TtlockBlePanel extends HTMLElement {
           .join("")}
         <p class="form-error" hidden></p>
         <div class="actions">
-          <button type="button" class="text" data-cancel>Cancel</button>
+          ${spec.noCancel ? "" : `<button type="button" class="text" data-cancel>Cancel</button>`}
           <button type="submit" class="${spec.danger ? "danger" : "primary"}">${esc(spec.submit)}</button>
         </div>
       </form>`;
@@ -387,14 +454,14 @@ class TtlockBlePanel extends HTMLElement {
       this._dialog = null;
     };
     host.querySelector(".scrim").addEventListener("click", close);
-    host.querySelector("[data-cancel]").addEventListener("click", close);
+    host.querySelector("[data-cancel]")?.addEventListener("click", close);
     form.addEventListener("keydown", (e) => e.key === "Escape" && close());
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       const bad = [...form.querySelectorAll("input")].find((i) => !i.checkValidity());
       if (bad) {
         const error = form.querySelector(".form-error");
-        error.textContent = `Check “${bad.closest("label").firstChild.textContent.trim()}”`;
+        error.textContent = `Check “${bad.closest("label")?.firstChild.textContent.trim() || "the form"}”`;
         error.hidden = false;
         bad.focus();
         return;
@@ -421,6 +488,7 @@ class TtlockBlePanel extends HTMLElement {
       <div class="toolbar">
         <ha-menu-button></ha-menu-button>
         <div class="title">TTLock BLE</div>
+        <button class="toolbar-btn" id="add-lock">Add a lock</button>
       </div>
       <div class="content" id="content"></div>
       <div id="dialog" hidden></div>`;
@@ -428,6 +496,7 @@ class TtlockBlePanel extends HTMLElement {
     menu.hass = this._hass;
     menu.narrow = this._narrow;
     this.shadowRoot.getElementById("content").addEventListener("click", (e) => this._onClick(e));
+    this.shadowRoot.getElementById("add-lock").addEventListener("click", () => this._addLock());
   }
 
   _onClick(event) {
@@ -452,6 +521,10 @@ class TtlockBlePanel extends HTMLElement {
         return cred && this._changePasscode(lock, cred);
       case "delete-digits":
         return this._deletePasscodeByDigits(lock);
+      case "remove":
+        return this._remove(lock);
+      case "show-code":
+        return this._showKeypadCode(lock);
       case "dismiss":
         delete this._jobs[lock.device_id];
         return this._render();
@@ -512,11 +585,15 @@ class TtlockBlePanel extends HTMLElement {
             ${this._renderPresence(lock)}
             <span class="chip">${esc(state)}</span>
             ${lock.battery != null ? `<span class="chip">Battery ${esc(lock.battery)}%</span>` : ""}
+            ${lock.paired_locally ? `<span class="chip">Paired by Home Assistant</span>` : ""}
           </div>
         </header>
         <div class="row-actions">
           ${lock.entity_id ? `<button class="primary" data-act="unlock" ${ids} ${dis}>Unlock</button>` : ""}
           ${lock.admin ? `<button data-act="read" ${ids} ${dis}>Read from lock</button>` : ""}
+          ${lock.admin_keypad_code ? `<button class="text" data-act="show-code" ${ids}>Keypad admin code</button>` : ""}
+          <span class="spacer"></span>
+          ${lock.removable ? `<button class="text danger" data-act="remove" ${ids} ${dis}>Remove</button>` : ""}
         </div>
         ${this._renderJob(lock)}
         ${sections}
@@ -598,7 +675,19 @@ const STYLE = `
     border-bottom: var(--app-header-border-bottom, none);
     box-sizing: border-box;
   }
-  .toolbar .title { font-size: 20px; margin-left: 12px; }
+  .toolbar .title { font-size: 20px; margin-left: 12px; flex: 1; }
+  .toolbar-btn {
+    color: inherit; border-color: color-mix(in srgb, currentColor 40%, transparent);
+  }
+  .spacer { flex: 1; }
+  fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 10px; }
+  legend { font-size: 13px; color: var(--secondary-text-color); margin-bottom: 4px; }
+  .dialog label.choice {
+    display: flex; gap: 10px; align-items: flex-start; color: var(--primary-text-color);
+    font-size: 14px; padding: 8px; border-radius: 8px;
+    border: 1px solid var(--divider-color, rgba(0,0,0,.2));
+  }
+  label.choice .note { display: block; margin: 2px 0 0; font-size: 13px; }
   .content { max-width: 880px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
   .lock {
     background: var(--card-background-color, #fff);

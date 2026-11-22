@@ -1,7 +1,7 @@
 """ttlock_ble: Python SDK for DLock-XP / TTLock smart locks over Bluetooth.
 
 Public API:
-    TTLockClient      — async BLE client for an already-paired lock
+    TTLockClient      — async BLE client for a lock: pairs one in setting mode, drives a paired one
     TTLockCloud       — async HTTP client for the TTLock cloud (key bootstrap)
     CloudApp          — the OEM app identity the cloud client presents (see CLOUD_APPS)
     VirtualKey        — per-(user, lock) credential bundle
@@ -11,6 +11,7 @@ Public API:
     LockEvent         — push notification surfaced by the BLE client
     LockSound         — beep on/off and volume as read back from the lock
     LogEntry          — one row from the lock's on-device operation log
+    PairingResult     — the keys a freshly paired lock answers to
     DeviceFeatures    — the capability bits the lock itself reports (see LockFeature)
     DeviceInfo        — standard BLE Device Information Service (0x180A) fields
     DeviceProperties  — 6 confirmed TTLock-proprietary device properties
@@ -57,6 +58,7 @@ from .models import (
     LockSound,
     LockVersion,
     LogEntry,
+    PairingResult,
     PasscodeEntry,
     SiteInfo,
     VirtualKey,
@@ -85,6 +87,7 @@ __all__ = [
     "LockVolume",
     "LogEntry",
     "LogOperate",
+    "PairingResult",
     "PasscodeEntry",
     "PwdOperateType",
     "SiteInfo",

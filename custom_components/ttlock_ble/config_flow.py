@@ -25,9 +25,15 @@ from .exceptions import (
 )
 from .manual_key import TtlockBleManualKey
 from .options_flow import TtlockBleOptionsFlow
-from .sdk import CLOUD_APPS
+from .pairing import (
+    async_get_pairing_store,
+    async_pair_lock,
+    async_pairable_locks,
+)
+from .sdk import CLOUD_APPS, TTLockError
 
 if TYPE_CHECKING:
+    import asyncio
     from collections.abc import Mapping
 
     from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
@@ -40,12 +46,16 @@ if TYPE_CHECKING:
         TtlockBleStoredKey,
         TtlockBleVerificationInput,
     )
+    from .pairing import TtlockBlePairable, TtlockBlePairing
     from .sdk import LockAdvertisement
 
 
 CONF_VERIFICATION_CODE = "verification_code"
 ABORT_ALREADY_CONFIGURED = "already_configured"
 ABORT_NOT_A_LOCK = "not_a_lock"
+ABORT_PAIRING_FAILED = "pairing_failed"
+CONF_LOCK = "lock"
+CONF_NAME = "name"
 DEFAULT_PROTOCOL_TYPE = 5
 DEFAULT_PROTOCOL_VERSION = 3
 DEFAULT_SCENE = 2
@@ -205,6 +215,11 @@ class TtlockBleFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     _discovery: BluetoothServiceInfoBleak | None = None
     _discovered_advertisement: LockAdvertisement | None = None
     _discovered_name: str = ""
+    _pair_address: str = ""
+    _pair_name: str = ""
+    _pair_task: asyncio.Task[TtlockBlePairing] | None = None
+    _pairing: TtlockBlePairing | None = None
+    _pair_error: str = ""
 
     @staticmethod
     @callback
@@ -222,7 +237,9 @@ class TtlockBleFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         user_input: TtlockBleCredentialsInput | None = None,  # noqa: ARG002
     ) -> config_entries.ConfigFlowResult:
         """Offer the two ways of obtaining a lock's keys."""
-        return self.async_show_menu(step_id="user", menu_options=["cloud", "manual"])
+        return self.async_show_menu(
+            step_id="user", menu_options=["pair", "cloud", "manual"]
+        )
 
     async def async_step_bluetooth(
         self,
@@ -263,11 +280,165 @@ class TtlockBleFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         whatever provisioned the lock locally. So this is the same menu
         the manual entry point shows, with the lock already identified.
         """
+        in_setting_mode = bool(
+            self._discovered_advertisement
+            and self._discovered_advertisement.is_setting_mode
+        )
         return self.async_show_menu(
             step_id="bluetooth_confirm",
-            menu_options=["cloud", "manual"],
+            menu_options=["pair", "cloud", "manual"]
+            if in_setting_mode
+            else ["cloud", "manual"],
             description_placeholders={"name": self._discovered_name},
         )
+
+    async def async_step_pair(
+        self,
+        user_input: dict[str, str] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """
+        Pick the lock to pair, and the name it gets.
+
+        A lock found by discovery is already chosen; otherwise every lock
+        in range that advertises setting mode is offered. Nothing is sent
+        to a lock until the form is submitted.
+        """
+        errors: dict[str, str] = {}
+        discovered = self._discovered_setting_mode_address()
+        configured = self._configured_macs()
+        pairable = [] if discovered else async_pairable_locks(self.hass, configured)
+        # A lock paired before its flow was closed has left setting mode, so
+        # it is offered from the keys kept for it instead of from the air.
+        store = await async_get_pairing_store(self.hass)
+        waiting = [
+            pairing
+            for pairing in store.all()
+            if format_mac(pairing.key.lockMac) not in configured
+        ]
+        if user_input is not None:
+            address = discovered or user_input.get(CONF_LOCK, "")
+            if address:
+                await self.async_set_unique_id(format_mac(address))
+                self._abort_if_unique_id_configured()
+                self._abort_if_lock_configured(address)
+                self._pair_address = address
+                self._pair_name = user_input.get(CONF_NAME, "").strip() or _name_of(
+                    address, pairable, self._discovered_name
+                )
+                return await self.async_step_pairing()
+            errors["base"] = "no_lock_in_pairing_mode"
+        elif not discovered and not pairable and not waiting:
+            errors["base"] = "no_lock_in_pairing_mode"
+        fields: dict[object, object] = {}
+        if not discovered:
+            fields[probatio.Optional(CONF_LOCK)] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[
+                        selector.SelectOptionDict(
+                            value=lock.address,
+                            label=f"{lock.name} ({lock.address}, {lock.rssi} dBm)",
+                        )
+                        for lock in pairable
+                    ]
+                    + [
+                        selector.SelectOptionDict(
+                            value=pairing.key.lockMac,
+                            label=f"{pairing.key.lockAlias} "
+                            f"({pairing.key.lockMac}, paired earlier: finish setup)",
+                        )
+                        for pairing in waiting
+                        if pairing.key.lockMac
+                        not in {lock.address for lock in pairable}
+                    ],
+                    mode=selector.SelectSelectorMode.LIST,
+                )
+            )
+        fields[
+            probatio.Optional(
+                CONF_NAME, default=self._discovered_name if discovered else ""
+            )
+        ] = selector.TextSelector()
+        return self.async_show_form(
+            step_id="pair",
+            data_schema=probatio.Schema(fields),
+            errors=errors,
+        )
+
+    async def async_step_pairing(
+        self,
+        user_input: dict[str, str] | None = None,  # noqa: ARG002
+    ) -> config_entries.ConfigFlowResult:
+        """Pair the chosen lock, showing progress until the lock has answered."""
+        if self._pair_task is None:
+            self._pair_task = self.hass.async_create_task(
+                async_pair_lock(self.hass, self._pair_address, self._pair_name),
+                name=f"{DOMAIN}.pair.{self._pair_address}",
+            )
+        if not self._pair_task.done():
+            return self.async_show_progress(
+                step_id="pairing",
+                progress_action="pairing",
+                progress_task=self._pair_task,
+                description_placeholders={"name": self._pair_name},
+            )
+        try:
+            self._pairing = self._pair_task.result()
+        except TTLockError as error:
+            LOGGER.warning("Pairing %s failed: %s", self._pair_address, error)
+            self._pair_error = str(error)
+            return self.async_show_progress_done(next_step_id="pair_failed")
+        return self.async_show_progress_done(next_step_id="pair_finish")
+
+    async def async_step_pair_failed(
+        self,
+        user_input: dict[str, str] | None = None,  # noqa: ARG002
+    ) -> config_entries.ConfigFlowResult:
+        """End the flow, saying why the lock was not paired."""
+        return self.async_abort(
+            reason=ABORT_PAIRING_FAILED,
+            description_placeholders={"error": self._pair_error},
+        )
+
+    async def async_step_pair_finish(
+        self,
+        user_input: dict[str, str] | None = None,  # noqa: ARG002
+    ) -> config_entries.ConfigFlowResult:
+        """Create the entry holding the keys the lock was just paired with."""
+        if self._pairing is None:
+            return self.async_abort(
+                reason=ABORT_PAIRING_FAILED,
+                description_placeholders={"error": "no pairing result"},
+            )
+        key = self._pairing.key
+        data: TtlockBleConfigData = {
+            "keys": [cast("TtlockBleStoredKey", key.to_dict())],
+            "paired_locally": True,
+            "admin_keypad_code": self._pairing.admin_keypad_code,
+        }
+        result = self.async_create_entry(title=key.lockAlias, data=dict(data))
+        store = await async_get_pairing_store(self.hass)
+        await store.async_discard(key.lockMac)
+        return result
+
+    @callback
+    def _discovered_setting_mode_address(self) -> str | None:
+        """Return the discovered lock's address when it is in setting mode."""
+        if (
+            self._discovery is None
+            or self._discovered_advertisement is None
+            or not self._discovered_advertisement.is_setting_mode
+        ):
+            return None
+        return self._discovery.address
+
+    @callback
+    def _configured_macs(self) -> set[str]:
+        """Return the formatted MAC of every lock some entry already holds."""
+        macs: set[str] = set()
+        for entry in self._async_current_entries(include_ignore=False):
+            existing = cast("TtlockBleConfigData", cast("object", entry.data))
+            macs.update(format_mac(key["lockMac"]) for key in existing.get("keys", []))
+        return macs
 
     async def async_step_cloud(
         self,
@@ -692,3 +863,11 @@ class TtlockBleFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             LOGGER.exception("Unknown error listing keys: %s", exc)
             return [], {"base": "unknown"}
         return [cast("TtlockBleStoredKey", key.to_dict()) for key in virtual_keys], {}
+
+
+def _name_of(address: str, pairable: list[TtlockBlePairable], fallback: str) -> str:
+    """Return the advertised name of the lock at `address`."""
+    return next(
+        (lock.name for lock in pairable if lock.address == address),
+        fallback or address,
+    )

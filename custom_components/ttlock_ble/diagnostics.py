@@ -32,6 +32,7 @@ TO_REDACT: frozenset[str] = frozenset(
         "aesKeyStr",
         "unlockKey",
         "adminPs",
+        "admin_keypad_code",
         "keys",
     },
 )

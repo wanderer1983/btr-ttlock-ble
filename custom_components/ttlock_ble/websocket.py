@@ -27,7 +27,7 @@ from .const import DOMAIN
 from .credential_store import async_get_credential_store
 from .credential_type import TtlockBleCredentialType
 from .key_privileges import can_administer, may_hold
-from .sdk import LockFeature
+from .sdk import LockFeature, TTLockError
 from .services import async_delete_passcode_by_key, async_resolve_lock
 from .wake import ASLEEP_AFTER_SECONDS, async_last_heard, async_wait_until_heard
 
@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from .connection import TtlockBleConnection
     from .coordinator import TtlockBleDataUpdateCoordinator
     from .credential_store import TtlockBleCredentialStore
+    from .data import TtlockBleConfigEntry
+    from .sdk import TTLockClient
 
 MAX_WAKE_WAIT_SECONDS = 300
 
@@ -56,6 +58,7 @@ def async_setup_websocket(hass: HomeAssistant) -> None:
         _ws_rename_credential,
         _ws_refresh_credentials,
         _ws_delete_passcode,
+        _ws_remove_lock,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -65,12 +68,12 @@ def _describe_lock(
     connection: TtlockBleConnection,
     coordinator: TtlockBleDataUpdateCoordinator,
     store: TtlockBleCredentialStore,
-    entry_id: str,
+    entry: TtlockBleConfigEntry,
 ) -> dict[str, Any] | None:
     key = connection.key
     mac = key.lockMac
     device = dr.async_get(hass).async_get_device_by_identifier(
-        (DOMAIN, dr.format_mac(mac)), entry_id
+        (DOMAIN, dr.format_mac(mac)), entry.entry_id
     )
     if device is None:
         return None
@@ -122,6 +125,11 @@ def _describe_lock(
             "asleep": heard.asleep,
         },
         "credentials": credentials,
+        # An account entry holds every lock of the account, so one of them
+        # cannot leave on its own: it goes when the account no longer has it.
+        "removable": "username" not in entry.data,
+        "paired_locally": bool(entry.data.get("paired_locally")),
+        "admin_keypad_code": entry.data.get("admin_keypad_code") or None,
     }
 
 
@@ -132,7 +140,7 @@ async def _async_all_locks(hass: HomeAssistant) -> list[dict[str, Any]]:
         runtime = entry.runtime_data
         for connection in runtime.connections.values():
             described = _describe_lock(
-                hass, connection, runtime.coordinator, store, entry.entry_id
+                hass, connection, runtime.coordinator, store, entry
             )
             if described is not None:
                 locks.append(described)
@@ -266,4 +274,48 @@ async def _ws_delete_passcode(
     except HomeAssistantError as error:
         connection.send_error(msg["id"], "delete_failed", str(error))
         return
+    connection.send_result(msg["id"])
+
+
+@websocket_api.websocket_command(
+    {
+        probatio.Required("type"): f"{DOMAIN}/remove_lock",
+        probatio.Required("device_id"): str,
+        probatio.Required("reset"): bool,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def _ws_remove_lock(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """
+    Remove a lock's entry, factory-resetting the lock first when asked.
+
+    The reset runs before the entry goes: the entry holds the only keys
+    that can reset the lock, so a reset that fails leaves both in place.
+    """
+    target = _target_or_error(hass, connection, msg)
+    if target is None:
+        return
+    if "username" in target.entry.data:
+        connection.send_error(
+            msg["id"],
+            "account_lock",
+            f"{target.name} comes from a TTLock account; remove it in the TTLock app",
+        )
+        return
+    if msg["reset"]:
+
+        async def _reset(client: TTLockClient) -> None:
+            await client.factory_reset()
+
+        try:
+            await target.connection.async_manage("factory_reset", _reset)
+        except TTLockError as error:
+            connection.send_error(
+                msg["id"], "reset_failed", f"{target.name} was not reset: {error}"
+            )
+            return
+    await hass.config_entries.async_remove(target.entry.entry_id)
     connection.send_result(msg["id"])
