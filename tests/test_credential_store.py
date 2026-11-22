@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from custom_components.ttlock_ble.credential_store import (
+from custom_components.btr_ttlock_ble.credential_store import (
     STORAGE_KEY,
     STORAGE_VERSION,
     TtlockBleCredentialStore,
 )
-from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
-from custom_components.ttlock_ble.data import TtlockBleKnownCredential
+from custom_components.btr_ttlock_ble.credential_type import TtlockBleCredentialType
+from custom_components.btr_ttlock_ble.data import TtlockBleKnownCredential
 
 MAC = "AA:BB:CC:DD:EE:FF"
 FINGERPRINT = TtlockBleCredentialType.FINGERPRINT
@@ -193,7 +193,7 @@ async def test_locks_keep_separate_credentials(hass) -> None:
 
 async def test_every_entry_shares_one_store(hass) -> None:
     """Two instances over one storage key take turns dropping each other's writes."""
-    from custom_components.ttlock_ble.credential_store import (
+    from custom_components.btr_ttlock_ble.credential_store import (
         async_get_credential_store,
     )
 

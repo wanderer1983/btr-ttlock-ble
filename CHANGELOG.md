@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.0 - BTR TTLock BLE
+
+First release of this fork of [ha-ttlock-ble](https://github.com/roquerodrigo/ha-ttlock-ble) 3.13, under its own domain, `btr_ttlock_ble`.
+
+- Pair a lock in pairing mode from Home Assistant, which keeps its keys; retried when the link drops, and resumable when interrupted.
+- Add and remove fingerprints and cards; add, change and delete passcodes; enrolment progress events.
+- Sidebar panel for every lock and its credentials, with wake-aware actions, factory reset and removal.
+- Fail fast on a lock that is asleep; learn the features of a lock whose key carries none.
+- The Bluetooth SDK is vendored, so nothing is installed from PyPI.
+- Licensed GPL-3.0-or-later; the upstream MIT notice is kept in LICENSE-MIT.
+
+The history below is the upstream project's.
+
+
 ## [3.13.0](https://github.com/roquerodrigo/ha-ttlock-ble/compare/v3.12.2...v3.13.0) (2026-11-14)
 
 Home Assistant users are now named on lock and unlock records, new connection quality sensors were added, and commands complete faster.

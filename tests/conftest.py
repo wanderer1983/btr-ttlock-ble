@@ -6,19 +6,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # Eagerly import the integration submodules so `unittest.mock.patch` can
-# resolve dotted targets like `custom_components.ttlock_ble.api.TTLockCloud`
+# resolve dotted targets like `custom_components.btr_ttlock_ble.api.TTLockCloud`
 # under pytest. Without this, Python's namespace package (custom_components/
-# has no __init__.py) leaves `ttlock_ble` unbound as an attribute, and
+# has no __init__.py) leaves `btr_ttlock_ble` unbound as an attribute, and
 # `pkgutil.resolve_name` fails with `module 'custom_components' has no
-# attribute 'ttlock_ble'` once HA's bluetooth loader runs.
-import custom_components.ttlock_ble
-import custom_components.ttlock_ble.api
-import custom_components.ttlock_ble.connection
-import custom_components.ttlock_ble.coordinator
-import custom_components.ttlock_ble.lock  # noqa: F401
-from custom_components.ttlock_ble.connection_quality import TtlockBleConnectionQuality
-from custom_components.ttlock_ble.sdk import DeviceInfo, VirtualKey
-from custom_components.ttlock_ble.sdk.models.lock_version import LockVersion
+# attribute 'btr_ttlock_ble'` once HA's bluetooth loader runs.
+import custom_components.btr_ttlock_ble
+import custom_components.btr_ttlock_ble.api
+import custom_components.btr_ttlock_ble.connection
+import custom_components.btr_ttlock_ble.coordinator
+import custom_components.btr_ttlock_ble.lock  # noqa: F401
+from custom_components.btr_ttlock_ble.connection_quality import (
+    TtlockBleConnectionQuality,
+)
+from custom_components.btr_ttlock_ble.sdk import DeviceInfo, VirtualKey
+from custom_components.btr_ttlock_ble.sdk.models.lock_version import LockVersion
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -49,8 +51,8 @@ def _fast_command_timings() -> Generator[None]:
     own value inside a tighter context.
     """
     with (
-        patch("custom_components.ttlock_ble.lock.COMMAND_SETTLE_SECONDS", 0.001),
-        patch("custom_components.ttlock_ble.lock.LOG_FETCH_DELAY_SECONDS", 0.001),
+        patch("custom_components.btr_ttlock_ble.lock.COMMAND_SETTLE_SECONDS", 0.001),
+        patch("custom_components.btr_ttlock_ble.lock.LOG_FETCH_DELAY_SECONDS", 0.001),
     ):
         yield
 
@@ -64,7 +66,7 @@ def real_settle_window() -> Generator[float]:
     stay open; they end it themselves, with the lock's completion push or
     by firing the timeout.
     """
-    with patch("custom_components.ttlock_ble.lock.COMMAND_SETTLE_SECONDS", 15.0):
+    with patch("custom_components.btr_ttlock_ble.lock.COMMAND_SETTLE_SECONDS", 15.0):
         yield 15.0
 
 
@@ -110,7 +112,7 @@ def sample_stored_key(sample_virtual_key: VirtualKey) -> dict:
 @pytest.fixture
 def mock_cloud() -> Generator[MagicMock]:
     """Patch `TTLockCloud` as imported by `api.py`, return the instance mock."""
-    with patch("custom_components.ttlock_ble.api.TTLockCloud") as cls:
+    with patch("custom_components.btr_ttlock_ble.api.TTLockCloud") as cls:
         instance = MagicMock()
         instance.discover_site = AsyncMock(return_value={})
         instance.login = AsyncMock(
@@ -140,7 +142,7 @@ def mock_ble_resolver(mock_ble_device: MagicMock) -> Generator[MagicMock]:
     """Patch `async_ble_device_from_address` in `connection.py`."""
     resolver = MagicMock(return_value=mock_ble_device)
     with patch(
-        "custom_components.ttlock_ble.connection.async_ble_device_from_address",
+        "custom_components.btr_ttlock_ble.connection.async_ble_device_from_address",
         new=resolver,
     ):
         yield resolver
@@ -161,7 +163,7 @@ def mock_ttlock_client() -> Generator[MagicMock]:
     instance.set_lock_sound = AsyncMock(return_value=None)
     instance.add_event_listener = MagicMock(return_value=None)
     instance.remove_event_listener = MagicMock(return_value=None)
-    with patch("custom_components.ttlock_ble.connection.TTLockClient") as cls:
+    with patch("custom_components.btr_ttlock_ble.connection.TTLockClient") as cls:
         cls.from_ble_device = MagicMock(return_value=instance)
         yield instance
 
@@ -188,7 +190,7 @@ def mock_ttlock_connection(sample_virtual_key: VirtualKey) -> Generator[MagicMoc
     instance.async_set_lock_sound = AsyncMock(return_value=None)
     instance.is_connected = True
     instance.quality = TtlockBleConnectionQuality()
-    with patch("custom_components.ttlock_ble.TtlockBleConnection") as cls:
+    with patch("custom_components.btr_ttlock_ble.TtlockBleConnection") as cls:
         cls.return_value = instance
         yield instance
 
@@ -204,7 +206,7 @@ async def setup_integration(
 ):
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    from custom_components.ttlock_ble.const import DOMAIN
+    from custom_components.btr_ttlock_ble.const import DOMAIN
 
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -231,7 +233,7 @@ async def setup_integration(
 
 def lock_advertisement(*, locked: bool, battery: int, dormant: bool = False):
     """Build a decoded advertisement the way the SDK hands one over."""
-    from custom_components.ttlock_ble.sdk import LockAdvertisement, LockState
+    from custom_components.btr_ttlock_ble.sdk import LockAdvertisement, LockState
 
     return LockAdvertisement(
         protocol_type=5,

@@ -1,49 +1,24 @@
 name: Release
 
-# Gated on a successful CI run rather than on the push itself. The
-# `workflow_run.event == 'push'` half of the condition is what stops a pull
-# request with green CI from cutting a release.
-#
-# A manual run skips that gate: it publishes a merged release whose CI run
-# never went green and brings the release pull request up to date with main.
-
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
-  workflow_dispatch:
+  release:
+    types: [published]
 
-concurrency:
-  group: release
-  cancel-in-progress: false
-
-permissions: {}
+permissions:
+  contents: write
 
 jobs:
-  release:
-    name: Release
-    if: >-
-      github.event_name == 'workflow_dispatch' || (
-        github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.conclusion == 'success'
-      )
+  zip:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
-      - name: Release
-        id: release
-        uses: roquerodrigo/release-autopilot@latest
-        with:
-          token: ${{ secrets.RELEASE_TOKEN }}
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-
-      - name: Attach the release asset
-        if: steps.release.outputs.released == 'true'
-        uses: roquerodrigo/home-assistant-autopilot@latest
-        with:
-          command: publish
-          tag: ${{ steps.release.outputs.tag }}
+      - uses: actions/checkout@v4
+      - name: Check the manifest version matches the tag
+        run: |
+          version=$(jq -r .version custom_components/btr_ttlock_ble/manifest.json)
+          test "v$version" = "${{ github.event.release.tag_name }}" || test "$version" = "${{ github.event.release.tag_name }}"
+      - name: Build btr_ttlock_ble.zip
+        run: cd custom_components && zip -r ../btr_ttlock_ble.zip btr_ttlock_ble -x '*/__pycache__/*'
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" btr_ttlock_ble.zip --clobber

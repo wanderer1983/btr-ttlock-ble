@@ -5,41 +5,30 @@ on:
     branches: [main]
   pull_request:
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 permissions:
   contents: read
 
 jobs:
-  lint:
-    uses: roquerodrigo/workflows/.github/workflows/python-lint.yml@main
-
-  tests:
-    needs: lint
-    uses: roquerodrigo/workflows/.github/workflows/python-test.yml@main
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+      - run: uv sync --all-groups --frozen
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run mypy custom_components/btr_ttlock_ble
+      - run: uv run pytest -q
 
   validate:
-    name: Home Assistant Marketplace
-    needs: lint
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
     steps:
-      - name: Check out the repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v4
+      - name: HACS validation
+        uses: hacs/action@main
         with:
-          persist-credentials: false
-
-      - name: Validate
-        uses: roquerodrigo/home-assistant-autopilot@latest
-
-  update-pr-branch:
-    if: github.event_name == 'pull_request'
-    needs: [lint, tests, validate]
-    permissions:
-      contents: write
-      pull-requests: write
-    uses: roquerodrigo/workflows/.github/workflows/update-pr-branch.yml@main
+          category: integration
+      - name: Hassfest
+        uses: home-assistant/actions/hassfest@master

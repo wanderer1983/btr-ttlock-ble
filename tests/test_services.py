@@ -9,11 +9,11 @@ import pytest
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 
-from custom_components.ttlock_ble.connection import TtlockBleConnection
-from custom_components.ttlock_ble.const import DOMAIN
-from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
-from custom_components.ttlock_ble.data import TtlockBleKnownCredential
-from custom_components.ttlock_ble.sdk import (
+from custom_components.btr_ttlock_ble.connection import TtlockBleConnection
+from custom_components.btr_ttlock_ble.const import DOMAIN
+from custom_components.btr_ttlock_ble.credential_type import TtlockBleCredentialType
+from custom_components.btr_ttlock_ble.data import TtlockBleKnownCredential
+from custom_components.btr_ttlock_ble.sdk import (
     CardEntry,
     EnrollmentStatus,
     FingerprintEntry,
@@ -21,7 +21,7 @@ from custom_components.ttlock_ble.sdk import (
     PasscodeEntry,
     TTLockError,
 )
-from custom_components.ttlock_ble.services import (
+from custom_components.btr_ttlock_ble.services import (
     ENROLL_IDLE_RETRIES,
     EVENT_ENROLLMENT,
 )

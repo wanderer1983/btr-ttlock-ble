@@ -1,0 +1,71 @@
+add_passcode:
+  fields:
+    device_id: &lock
+      required: true
+      selector:
+        device:
+          integration: btr_ttlock_ble
+    passcode: &passcode
+      required: true
+      example: "482916"
+      selector:
+        text:
+          type: password
+    name: &name
+      example: "Cleaner"
+      selector:
+        text:
+    start: &start
+      selector:
+        datetime:
+    end: &end
+      selector:
+        datetime:
+
+delete_passcode:
+  fields:
+    device_id: *lock
+    passcode: *passcode
+
+change_passcode:
+  fields:
+    device_id: *lock
+    passcode: *passcode
+    new_passcode:
+      required: true
+      example: "739205"
+      selector:
+        text:
+          type: password
+
+add_card:
+  fields:
+    device_id: *lock
+    name: *name
+    start: *start
+    end: *end
+
+delete_card:
+  fields:
+    device_id: *lock
+    card:
+      required: true
+      example: "2864434397"
+      selector:
+        text:
+
+add_fingerprint:
+  fields:
+    device_id: *lock
+    name: *name
+    start: *start
+    end: *end
+
+delete_fingerprint:
+  fields:
+    device_id: *lock
+    fingerprint:
+      required: true
+      example: "42"
+      selector:
+        text:

@@ -5,9 +5,9 @@ import datetime as dt
 import pytest
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from custom_components.ttlock_ble.connection import log_signal
-from custom_components.ttlock_ble.event import _classify_record, _record_type_name
-from custom_components.ttlock_ble.sdk import LogEntry, LogOperate
+from custom_components.btr_ttlock_ble.connection import log_signal
+from custom_components.btr_ttlock_ble.event import _classify_record, _record_type_name
+from custom_components.btr_ttlock_ble.sdk import LogEntry, LogOperate
 
 
 def _log_state(hass):
@@ -97,7 +97,7 @@ async def test_log_event_redacts_every_passcode_record_type(
     sample_virtual_key,
 ) -> None:
     """No record type that carries a working door code may publish it."""
-    from custom_components.ttlock_ble.credential_resolver import (
+    from custom_components.btr_ttlock_ble.credential_resolver import (
         PASSCODE_RECORD_TYPES,
     )
 
@@ -162,14 +162,14 @@ def test_every_record_type_is_deliberately_classified() -> None:
     enum, so a type added to the SDK later fails here until someone has
     decided what it means rather than silently becoming `other`.
     """
-    from custom_components.ttlock_ble.event import (
+    from custom_components.btr_ttlock_ble.event import (
         LOCK_RECORD_TYPES,
         PASSWORD_CHANGE_RECORD_TYPES,
         UNBUCKETED_RECORD_TYPES,
         UNLOCK_FAILED_RECORD_TYPES,
         UNLOCK_RECORD_TYPES,
     )
-    from custom_components.ttlock_ble.sdk import LogOperate
+    from custom_components.btr_ttlock_ble.sdk import LogOperate
 
     accounted = (
         UNLOCK_RECORD_TYPES
@@ -183,7 +183,7 @@ def test_every_record_type_is_deliberately_classified() -> None:
 
 def test_the_buckets_do_not_overlap() -> None:
     """A record type means one thing; two buckets would make order decide."""
-    from custom_components.ttlock_ble.event import (
+    from custom_components.btr_ttlock_ble.event import (
         LOCK_RECORD_TYPES,
         PASSWORD_CHANGE_RECORD_TYPES,
         UNBUCKETED_RECORD_TYPES,
@@ -205,11 +205,11 @@ def test_the_buckets_do_not_overlap() -> None:
 
 def test_a_passcode_carrying_record_never_leaks_its_code() -> None:
     """Newly classified types must not have widened what reaches an attribute."""
-    from custom_components.ttlock_ble.credential_resolver import (
+    from custom_components.btr_ttlock_ble.credential_resolver import (
         PASSCODE_RECORD_TYPES,
     )
-    from custom_components.ttlock_ble.event import UNLOCK_RECORD_TYPES
-    from custom_components.ttlock_ble.sdk import LogOperate
+    from custom_components.btr_ttlock_ble.event import UNLOCK_RECORD_TYPES
+    from custom_components.btr_ttlock_ble.sdk import LogOperate
 
     assert LogOperate.ADMIN_CODE_UNLOCK in PASSCODE_RECORD_TYPES
     assert LogOperate.DOUBLE_CHECK_PASSCODE_UNLOCK in PASSCODE_RECORD_TYPES
@@ -217,11 +217,11 @@ def test_a_passcode_carrying_record_never_leaks_its_code() -> None:
 
 
 async def _name_fingerprint(hass, mac, number: int, name: str) -> None:
-    from custom_components.ttlock_ble.credential_store import (
+    from custom_components.btr_ttlock_ble.credential_store import (
         async_get_credential_store,
     )
-    from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
-    from custom_components.ttlock_ble.data import (
+    from custom_components.btr_ttlock_ble.credential_type import TtlockBleCredentialType
+    from custom_components.btr_ttlock_ble.data import (
         TtlockBleEnrolledFingerprint,
         TtlockBleKnownCredential,
     )
@@ -346,11 +346,11 @@ async def test_a_passcode_record_carries_its_label_but_never_the_code(
 async def test_a_named_passcode_names_the_record(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from custom_components.ttlock_ble.credential_store import (
+    from custom_components.btr_ttlock_ble.credential_store import (
         async_get_credential_store,
     )
-    from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
-    from custom_components.ttlock_ble.data import TtlockBleKnownCredential
+    from custom_components.btr_ttlock_ble.credential_type import TtlockBleCredentialType
+    from custom_components.btr_ttlock_ble.data import TtlockBleKnownCredential
 
     mac = sample_virtual_key.lockMac
     passcode = TtlockBleKnownCredential.from_passcode(mac, "998877")
@@ -382,11 +382,11 @@ async def test_a_refused_passcode_shows_nothing_of_the_code(
 async def test_a_card_record_is_named_after_its_card(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from custom_components.ttlock_ble.credential_store import (
+    from custom_components.btr_ttlock_ble.credential_store import (
         async_get_credential_store,
     )
-    from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
-    from custom_components.ttlock_ble.data import TtlockBleKnownCredential
+    from custom_components.btr_ttlock_ble.credential_type import TtlockBleCredentialType
+    from custom_components.btr_ttlock_ble.data import TtlockBleKnownCredential
 
     mac = sample_virtual_key.lockMac
     card = TtlockBleCredentialType.CARD
@@ -439,9 +439,9 @@ async def test_another_app_or_the_gateway_is_not_named(
 async def test_a_lock_sent_by_a_user_names_them_on_the_record(
     hass, setup_integration, sample_virtual_key
 ) -> None:
-    from custom_components.ttlock_ble.const import DOMAIN
-    from custom_components.ttlock_ble.data import TtlockBleIssuedCommand
-    from custom_components.ttlock_ble.lock_command import TtlockBleLockCommand
+    from custom_components.btr_ttlock_ble.const import DOMAIN
+    from custom_components.btr_ttlock_ble.data import TtlockBleIssuedCommand
+    from custom_components.btr_ttlock_ble.lock_command import TtlockBleLockCommand
 
     stamped_at = dt.datetime(2026, 10, 28, 10, 0)  # noqa: DTZ001 — lock RTC is naive
     hass.config_entries.async_entries(DOMAIN)[0].runtime_data.command_journal.note(

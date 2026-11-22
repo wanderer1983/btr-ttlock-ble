@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock
 import pytest
 from homeassistant.exceptions import HomeAssistantError
 
-from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
-from custom_components.ttlock_ble.data import TtlockBleKnownCredential
-from custom_components.ttlock_ble.sdk import FingerprintEntry
+from custom_components.btr_ttlock_ble.credential_type import TtlockBleCredentialType
+from custom_components.btr_ttlock_ble.data import TtlockBleKnownCredential
+from custom_components.btr_ttlock_ble.sdk import FingerprintEntry
 
 
 def _button_state(hass):
@@ -28,7 +28,7 @@ async def test_no_refresh_button_for_a_non_admin_key(
 ) -> None:
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    from custom_components.ttlock_ble.const import DOMAIN
+    from custom_components.btr_ttlock_ble.const import DOMAIN
 
     key = dict(sample_stored_key)
     key["userType"] = "110302"
@@ -68,7 +68,7 @@ async def test_refresh_button_lives_on_the_lock_device(
     from homeassistant.helpers import entity_registry as er
     from homeassistant.helpers.device_registry import format_mac
 
-    from custom_components.ttlock_ble.const import DOMAIN
+    from custom_components.btr_ttlock_ble.const import DOMAIN
 
     lock_device = dr.async_get(hass).async_get_device_by_identifier(
         (DOMAIN, format_mac(sample_virtual_key.lockMac)), setup_integration.entry_id

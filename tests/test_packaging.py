@@ -7,7 +7,7 @@ import tomllib
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
-_INTEGRATION = _ROOT / "custom_components" / "ttlock_ble"
+_INTEGRATION = _ROOT / "custom_components" / "btr_ttlock_ble"
 _SDK = "ttlock-ble"
 
 

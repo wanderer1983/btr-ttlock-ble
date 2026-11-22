@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.util import dt as dt_util
 
-from custom_components.ttlock_ble.clock_sync_store import TtlockBleClockSyncStore
-from custom_components.ttlock_ble.coordinator import (
+from custom_components.btr_ttlock_ble.clock_sync_store import TtlockBleClockSyncStore
+from custom_components.btr_ttlock_ble.coordinator import (
     CLOCK_CHECK_INTERVAL_SECONDS,
     CLOCK_DRIFT_THRESHOLD_SECONDS,
     CREDENTIAL_CHECK_INTERVAL_SECONDS,
@@ -17,13 +17,13 @@ from custom_components.ttlock_ble.coordinator import (
     TtlockBleDataUpdateCoordinator,
     _parse_lock_state,
 )
-from custom_components.ttlock_ble.credential_store import TtlockBleCredentialStore
-from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
-from custom_components.ttlock_ble.data import TtlockBleKnownCredential
-from custom_components.ttlock_ble.device_description_store import (
+from custom_components.btr_ttlock_ble.credential_store import TtlockBleCredentialStore
+from custom_components.btr_ttlock_ble.credential_type import TtlockBleCredentialType
+from custom_components.btr_ttlock_ble.data import TtlockBleKnownCredential
+from custom_components.btr_ttlock_ble.device_description_store import (
     TtlockBleDeviceDescriptionStore,
 )
-from custom_components.ttlock_ble.sdk import (
+from custom_components.btr_ttlock_ble.sdk import (
     CardEntry,
     DeviceInfo,
     FingerprintEntry,
@@ -140,7 +140,7 @@ def _advertisement(
     dormant: bool = False,
     records: bool = False,
 ):
-    from custom_components.ttlock_ble.sdk import LockAdvertisement, LockState
+    from custom_components.btr_ttlock_ble.sdk import LockAdvertisement, LockState
 
     if dormant:
         lock_state = None
@@ -291,7 +291,7 @@ async def test_unreachable_lock_is_retried_after_the_cooldown(hass) -> None:
     from homeassistant.util import dt as dt_util
     from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-    from custom_components.ttlock_ble.coordinator import LOG_RETRY_COOLDOWN_SECONDS
+    from custom_components.btr_ttlock_ble.coordinator import LOG_RETRY_COOLDOWN_SECONDS
 
     conn = _mock_connection()
     conn.async_get_operation_log = AsyncMock(return_value=[])
@@ -370,7 +370,7 @@ async def test_a_pending_read_is_retried_on_a_timer(hass) -> None:
     from homeassistant.util import dt as dt_util
     from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-    from custom_components.ttlock_ble.coordinator import LOG_RETRY_COOLDOWN_SECONDS
+    from custom_components.btr_ttlock_ble.coordinator import LOG_RETRY_COOLDOWN_SECONDS
 
     conn = _mock_connection()
     coordinator = _log_coordinator(hass, conn)
@@ -401,7 +401,7 @@ async def test_the_retry_stops_once_the_flag_clears(hass) -> None:
     from homeassistant.util import dt as dt_util
     from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-    from custom_components.ttlock_ble.coordinator import LOG_RETRY_COOLDOWN_SECONDS
+    from custom_components.btr_ttlock_ble.coordinator import LOG_RETRY_COOLDOWN_SECONDS
 
     async_fire_time_changed(
         hass,
@@ -451,7 +451,9 @@ async def test_the_read_is_tried_again_after_the_cooldown(hass) -> None:
     from homeassistant.util import dt as dt_util
     from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-    from custom_components.ttlock_ble.coordinator import STATE_PROBE_COOLDOWN_SECONDS
+    from custom_components.btr_ttlock_ble.coordinator import (
+        STATE_PROBE_COOLDOWN_SECONDS,
+    )
 
     conn = _mock_connection()
     coordinator = _log_coordinator(hass, conn)
@@ -584,7 +586,7 @@ async def test_the_hardware_strings_reach_the_registry_device(
     from homeassistant.helpers import device_registry
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    from custom_components.ttlock_ble.const import DOMAIN
+    from custom_components.btr_ttlock_ble.const import DOMAIN
 
     entry = MockConfigEntry(domain=DOMAIN, data={}, unique_id="u")
     entry.add_to_hass(hass)
@@ -618,7 +620,7 @@ async def test_a_field_the_lock_leaves_out_keeps_what_the_device_had(
     from homeassistant.helpers import device_registry
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    from custom_components.ttlock_ble.const import DOMAIN
+    from custom_components.btr_ttlock_ble.const import DOMAIN
 
     entry = MockConfigEntry(domain=DOMAIN, data={}, unique_id="u")
     entry.add_to_hass(hass)
@@ -691,7 +693,7 @@ async def test_a_cancelled_retry_never_fires_again(hass) -> None:
     from homeassistant.util import dt as dt_util
     from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-    from custom_components.ttlock_ble.coordinator import LOG_RETRY_COOLDOWN_SECONDS
+    from custom_components.btr_ttlock_ble.coordinator import LOG_RETRY_COOLDOWN_SECONDS
 
     conn = _mock_connection()
     coordinator = _log_coordinator(hass, conn)
@@ -1213,7 +1215,7 @@ async def test_poll_stamps_the_reading_with_the_time_it_was_read(hass) -> None:
     clock = [100.0]
     conn.async_get_operation_log = AsyncMock(side_effect=slow_log)
     with patch(
-        "custom_components.ttlock_ble.coordinator.time.monotonic",
+        "custom_components.btr_ttlock_ble.coordinator.time.monotonic",
         side_effect=lambda: clock[0],
     ):
         data = await coordinator._async_update_data()
@@ -1223,7 +1225,7 @@ async def test_poll_stamps_the_reading_with_the_time_it_was_read(hass) -> None:
 async def test_awake_advertisement_is_stamped_with_the_time_it_was_heard(hass) -> None:
     coordinator = _coordinator(hass, {})
     with patch(
-        "custom_components.ttlock_ble.coordinator.time.monotonic",
+        "custom_components.btr_ttlock_ble.coordinator.time.monotonic",
         return_value=42.0,
     ):
         coordinator.async_apply_advertisement(
@@ -1236,14 +1238,14 @@ async def test_dormant_advertisement_keeps_the_old_reading_timestamp(hass) -> No
     """A dormant frame carries no bolt position, so it must not look like a new read."""
     coordinator = _coordinator(hass, {})
     with patch(
-        "custom_components.ttlock_ble.coordinator.time.monotonic",
+        "custom_components.btr_ttlock_ble.coordinator.time.monotonic",
         return_value=42.0,
     ):
         coordinator.async_apply_advertisement(
             "AA:BB:CC:DD:EE:FF", _advertisement(unlocked=True)
         )
     with patch(
-        "custom_components.ttlock_ble.coordinator.time.monotonic",
+        "custom_components.btr_ttlock_ble.coordinator.time.monotonic",
         return_value=99.0,
     ):
         coordinator.async_apply_advertisement(
@@ -1259,8 +1261,8 @@ async def test_features_are_learned_once_for_a_key_without_them(
 ) -> None:
     from unittest.mock import AsyncMock, patch
 
-    from custom_components.ttlock_ble.feature_store import async_get_feature_store
-    from custom_components.ttlock_ble.sdk import DeviceFeatures, LockFeature
+    from custom_components.btr_ttlock_ble.feature_store import async_get_feature_store
+    from custom_components.btr_ttlock_ble.sdk import DeviceFeatures, LockFeature
 
     coordinator = setup_integration.runtime_data.coordinator
     key = mock_ttlock_connection.key

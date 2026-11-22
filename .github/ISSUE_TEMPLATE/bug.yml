@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: >-
-        Before opening, search the [existing issues](https://github.com/roquerodrigo/ha-ttlock-ble/issues?q=is%3Aissue) for the same problem.
+        Before opening, search the [existing issues](https://github.com/wanderer1983/btr-ttlock-ble/issues?q=is%3Aissue) for the same problem.
         Report one problem per issue.
   - type: input
     id: version

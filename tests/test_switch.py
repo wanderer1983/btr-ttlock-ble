@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 from homeassistant.exceptions import HomeAssistantError
 
-from custom_components.ttlock_ble.sdk import LockSound, TTLockError
+from custom_components.btr_ttlock_ble.sdk import LockSound, TTLockError
 
 
 def _switch_state(hass):
@@ -110,7 +110,7 @@ async def test_no_switch_without_the_admin_passcode(
     """CHECK_ADMIN needs it; an entity that can only ever fail is worse than none."""
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    from custom_components.ttlock_ble.const import DOMAIN
+    from custom_components.btr_ttlock_ble.const import DOMAIN
 
     key = dict(sample_stored_key)
     key["adminPs"] = ""
@@ -135,7 +135,7 @@ async def test_no_switch_for_a_non_admin_key(
 ) -> None:
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    from custom_components.ttlock_ble.const import DOMAIN
+    from custom_components.btr_ttlock_ble.const import DOMAIN
 
     key = dict(sample_stored_key)
     key["userType"] = "110302"

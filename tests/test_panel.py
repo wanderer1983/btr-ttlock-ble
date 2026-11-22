@@ -11,14 +11,14 @@ from homeassistant.components import frontend
 from homeassistant.const import EVENT_COMPONENT_LOADED
 from homeassistant.helpers import device_registry as dr
 
-from custom_components.ttlock_ble.connection import TtlockBleConnection
-from custom_components.ttlock_ble.const import DOMAIN
-from custom_components.ttlock_ble.credential_store import async_get_credential_store
-from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
-from custom_components.ttlock_ble.data import TtlockBleKnownCredential
-from custom_components.ttlock_ble.panel import PANEL_URL_PATH, async_setup_panel
-from custom_components.ttlock_ble.sdk import KeyboardPwdType, PasscodeEntry
-from custom_components.ttlock_ble.wake import (
+from custom_components.btr_ttlock_ble.connection import TtlockBleConnection
+from custom_components.btr_ttlock_ble.const import DOMAIN
+from custom_components.btr_ttlock_ble.credential_store import async_get_credential_store
+from custom_components.btr_ttlock_ble.credential_type import TtlockBleCredentialType
+from custom_components.btr_ttlock_ble.data import TtlockBleKnownCredential
+from custom_components.btr_ttlock_ble.panel import PANEL_URL_PATH, async_setup_panel
+from custom_components.btr_ttlock_ble.sdk import KeyboardPwdType, PasscodeEntry
+from custom_components.btr_ttlock_ble.wake import (
     TtlockBleHeard,
     TtlockBleLockAsleepError,
     async_last_heard,
@@ -56,7 +56,7 @@ async def _ws(hass_ws_client, hass, **msg):
 
 
 async def test_panel_waits_for_the_frontend(hass) -> None:
-    with patch("custom_components.ttlock_ble.panel.panel_custom") as panel_custom:
+    with patch("custom_components.btr_ttlock_ble.panel.panel_custom") as panel_custom:
         async_setup_panel(hass, "1")
         await hass.async_block_till_done()
     panel_custom.async_register_panel.assert_not_called()
@@ -65,7 +65,7 @@ async def test_panel_waits_for_the_frontend(hass) -> None:
 async def test_panel_is_registered_for_admins_with_a_versioned_script(hass) -> None:
     hass.http = MagicMock(async_register_static_paths=AsyncMock())
     with patch(
-        "custom_components.ttlock_ble.panel.panel_custom.async_register_panel",
+        "custom_components.btr_ttlock_ble.panel.panel_custom.async_register_panel",
         AsyncMock(),
     ) as register:
         async_setup_panel(hass, "9.9")
@@ -80,9 +80,9 @@ async def test_panel_is_registered_for_admins_with_a_versioned_script(hass) -> N
     kwargs = register.await_args.kwargs
     assert kwargs["frontend_url_path"] == PANEL_URL_PATH
     assert kwargs["require_admin"] is True
-    assert kwargs["module_url"].endswith("ttlock-ble-panel.js?v=9.9")
+    assert kwargs["module_url"].endswith("btr-ttlock-ble-panel.js?v=9.9")
     (static,) = hass.http.async_register_static_paths.await_args.args[0]
-    assert (Path(static.path) / "ttlock-ble-panel.js").is_file()
+    assert (Path(static.path) / "btr-ttlock-ble-panel.js").is_file()
 
 
 async def test_locks_lists_credentials_and_names(
@@ -159,7 +159,7 @@ async def test_wait_awake_reports_the_wait(
     hass, hass_ws_client, setup_integration, device_id, client
 ) -> None:
     with patch(
-        "custom_components.ttlock_ble.websocket.async_wait_until_heard",
+        "custom_components.btr_ttlock_ble.websocket.async_wait_until_heard",
         AsyncMock(return_value=True),
     ) as wait:
         reply = await _ws(
@@ -231,7 +231,8 @@ async def test_refresh_refuses_a_sleeping_lock(
 ) -> None:
     heard = TtlockBleHeard(seconds_ago=600, rssi=-70, source="aa", source_name="proxy1")
     with patch(
-        "custom_components.ttlock_ble.websocket.async_last_heard", return_value=heard
+        "custom_components.btr_ttlock_ble.websocket.async_last_heard",
+        return_value=heard,
     ):
         reply = await _ws(
             hass_ws_client,
@@ -277,7 +278,7 @@ async def test_wait_until_heard_returns_at_once_when_just_heard(
 ) -> None:
     heard = TtlockBleHeard(1, -70, "a", "p")
     with patch(
-        "custom_components.ttlock_ble.wake.async_last_heard", return_value=heard
+        "custom_components.btr_ttlock_ble.wake.async_last_heard", return_value=heard
     ):
         assert await async_wait_until_heard(hass, "AA:BB:CC:DD:EE:FF", 0.05)
 
@@ -293,7 +294,7 @@ async def test_wait_until_heard_wakes_on_a_repeated_packet(
         return lambda: registered.update(unsubscribed=True)
 
     with patch(
-        "custom_components.ttlock_ble.wake.async_register_advertisement_callback",
+        "custom_components.btr_ttlock_ble.wake.async_register_advertisement_callback",
         _register,
     ):
         waiting = hass.async_create_task(
@@ -313,7 +314,7 @@ async def test_manage_refuses_a_sleeping_lock_without_connecting(
     conn = TtlockBleConnection(hass, sample_virtual_key)
     with (
         patch(
-            "custom_components.ttlock_ble.connection.async_last_heard",
+            "custom_components.btr_ttlock_ble.connection.async_last_heard",
             return_value=heard,
         ),
         pytest.raises(TtlockBleLockAsleepError, match="asleep"),
@@ -328,7 +329,8 @@ async def test_manage_connects_to_a_lock_heard_just_now(
     heard = TtlockBleHeard(seconds_ago=1, rssi=-70, source="aa", source_name="proxy1")
     conn = TtlockBleConnection(hass, sample_virtual_key)
     with patch(
-        "custom_components.ttlock_ble.connection.async_last_heard", return_value=heard
+        "custom_components.btr_ttlock_ble.connection.async_last_heard",
+        return_value=heard,
     ):
         await conn.async_unlock()
     mock_ttlock_client.unlock.assert_awaited_once()

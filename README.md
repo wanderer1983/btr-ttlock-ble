@@ -1,34 +1,131 @@
-# Home Assistant TTLock BLE
+# BTR TTLock BLE for Home Assistant
 
-[![CI](https://github.com/roquerodrigo/ha-ttlock-ble/actions/workflows/ci.yml/badge.svg)](https://github.com/roquerodrigo/ha-ttlock-ble/actions/workflows/ci.yml)
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![CI](https://github.com/wanderer1983/btr-ttlock-ble/actions/workflows/ci.yml/badge.svg)](https://github.com/wanderer1983/btr-ttlock-ble/actions/workflows/ci.yml)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=githubsponsors&logoColor=white&style=for-the-badge)](https://github.com/sponsors/roquerodrigo)
+[![Open your Home Assistant instance and open this repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=wanderer1983&repository=btr-ttlock-ble&category=integration)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=roquerodrigo&repository=ha-ttlock-ble&category=integration)
+Local control of TTLock smart locks and padlocks over Bluetooth, for [Home Assistant](https://www.home-assistant.io/), through any Bluetooth adapter or standard [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy.html). No TTLock gateway and no cloud at run time.
 
----
+On top of locking, unlocking, battery and live events, it manages what the lock holds: **pair a new lock straight from Home Assistant**, **add and remove fingerprints, cards and passcodes**, and **factory-reset** a lock, all from a sidebar panel or from actions.
 
-Local control of TTLock smart locks over Bluetooth, for [Home Assistant](https://www.home-assistant.io/). Lock / unlock, battery level and real-time push events flow over BLE — no cloud round-trip on every operation. Built on the sibling Python SDK [`ttlock-ble`](https://github.com/roquerodrigo/ttlock-ble).
+This is a fork of [roquerodrigo/ha-ttlock-ble](https://github.com/roquerodrigo/ha-ttlock-ble). It uses its own domain (`btr_ttlock_ble`), so it can be installed alongside the original.
 
-## Features
+## What it adds
 
-- **Local BLE control** — lock, unlock, and state queries run over the lock's BLE link; the TTLock cloud is only contacted once at setup to download per-lock keys.
-- **Real-time push events** — keypad presses, fingerprint reads, IC-card swipes, mechanical key turns, and auto-lock fires arrive as Home Assistant events the moment the lock emits them.
-- **Battery sensor** — diagnostic entity refreshed by every poll *and* every push, no extra BLE traffic.
-- **Clock alignment** — the lock's own clock, which stamps every operation-log record, is compared against local time once a day on a session something else already opened, and corrected when it has wandered. A diagnostic sensor reports the measured drift.
-- **Bluetooth discovery** — a lock in range of any radio Home Assistant manages shows up on its own as a discovered device; the address and the frame header come off the advertisement, so only the keys are left to provide.
-- **2FA-aware config flow** — handles TTLock's "new device" verification by emailing a one-time code and prompting for it.
-- **Other TTLock-based apps** — accounts created in the Schlage Breeze app sign in the same way, by picking the app at setup.
-- **Door sensor** — a lock with a paired door sensor gets a door entity, created the first time the lock reports the door.
-- **Who unlocked** — every log event says what kind of credential was used, its identifier and, once named, whose it is; a sensor keeps the last unlock. Fingerprints, cards and passcodes can each be given the name of the person they belong to.
-- **Works without a cloud account** — a lock initialised locally can be added by entering its key directly, no TTLock account involved at any point.
-- **Passive state tracking** — the bolt position and battery level are read from the lock's own BLE advertisements, with no connection and no battery cost. This is what catches an auto-lock or an operation done from the official app.
-- **Connects only on demand** — nothing is held open. A session is opened when a command needs the lock, when the lock advertises that it has records worth reading, or when the permanent connection option asks for one.
-- **Reauth + reconfigure** — re-prompt for credentials in place when the cloud rejects the cached login, or edit them via the integration's three-dot menu.
-- **Connection quality** — diagnostic sensors for the signal strength of the lock's advertisements, in dBm and as a percentage (and the adapter or proxy that heard them), how long the last BLE session took to come up, and how many recent session attempts succeeded.
-- **Diagnostics** — downloadable dump with credentials/keys redacted.
-- **Translations** — English, Brazilian Portuguese and Hebrew (parity enforced by tests).
+- **Pairing from Home Assistant** – a lock in pairing mode (new, or after a factory reset) shows up under *Discovered*. Pick **Pair** and Home Assistant becomes its admin and keeps its keys. Nobody ever types or copies a key, and no TTLock account is involved.
+- **Credential management** – enrol and delete fingerprints and cards, add, change and delete passcodes, with optional validity windows. Enrolment reports each step (place your finger, scan accepted, enrolled) as it happens.
+- **Sidebar panel** – one page with every lock: whether it is in range and through which proxy, its state and battery, and its fingerprints, cards and passcodes with add, name, change and delete. Anything that needs a session waits for the lock to wake before it starts.
+- **Factory reset and removal** – remove a lock and reset it in the same step, so it is ready for this or any other app.
+- **Asleep locks fail fast** – a command for a lock no proxy has heard for 20 seconds says "asleep, touch it to wake it" at once, instead of running into Bluetooth timeouts.
+- **Features read from the lock** – a lock whose key does not say what it supports is asked once, so a padlock without keypad or card reader does not offer passcodes and cards.
+
+Everything from the original is still there: local Bluetooth lock and unlock, battery and state read from the lock's own broadcasts, live operation-log events, who-unlocked tracking, clock alignment, TTLock account sign-in, manual keys, diagnostics.
+
+## Requirements
+
+- Home Assistant 2026.10 or newer, with the Bluetooth integration set up.
+- A Bluetooth radio within range of each lock: a local adapter, or an ESP32 running an [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy.html) in active mode. Several locks far apart are fine, with one proxy near each. See [Bluetooth proxies](#bluetooth-proxies) for the settings that matter.
+- A TTLock-family lock (TTLock, DLock-XP, Schlage Breeze and other apps built on the TTLock platform) using the V3 protocol, which covers current models.
+
+## Installation
+
+### With HACS (recommended)
+
+1. Click the **Open in HACS** button above. It opens HACS in your Home Assistant with this repository filled in. Or, in HACS, open the ⋮ menu → **Custom repositories**, add `https://github.com/wanderer1983/btr-ttlock-ble` with type **Integration**.
+2. Download **BTR TTLock BLE** in HACS.
+3. Restart Home Assistant.
+
+### Manual installation
+
+1. Download `btr_ttlock_ble.zip` from the [latest release](https://github.com/wanderer1983/btr-ttlock-ble/releases/latest), or the repository as a zip.
+2. Copy the `btr_ttlock_ble` folder into your Home Assistant configuration folder, under `custom_components`, so you end up with `config/custom_components/btr_ttlock_ble/manifest.json`. Create `custom_components` if it does not exist. The Samba, File editor or Studio Code Server add-ons all work for this, as does `scp` to a host with SSH access.
+3. Restart Home Assistant.
+
+To update by hand, replace the folder with the new release's and restart. The keys of locks paired by Home Assistant live in Home Assistant's own storage, not in this folder, so they survive an update.
+
+## Adding a lock
+
+Go to **Settings → Devices & services**. A lock in range usually waits there already under **Discovered**; otherwise use **Add integration → BTR TTLock BLE**. There are three ways to give Home Assistant a lock's keys:
+
+| Option | When to use it |
+|---|---|
+| **Pair a lock that is in pairing mode** | A new lock, or one you have reset. Home Assistant pairs it and keeps the keys. The lock is not on any TTLock account afterwards, so the TTLock app cannot open it. |
+| **Sign in to a TTLock account** | Locks already paired in the TTLock app (or Schlage Breeze). Every lock on the account is added at once, and the app keeps working too. A new device login is confirmed with a code TTLock emails you. |
+| **Enter a lock key manually** | A lock paired by some other local tool, whose AES key, unlock key and admin passcode you already have. |
+
+### Pairing a lock
+
+1. Put the lock in pairing mode. A new lock is in it out of the box. A used one gets there with a factory reset: from the panel (**Remove** → *Factory-reset the lock*), from the TTLock app (delete the lock), or with the lock's reset button.
+2. Wake the lock (touch it, or press a key). Its broadcast now says it is in pairing mode, and a **Discovered** card appears within seconds. The panel's **Add a lock** button opens the same screen.
+3. Choose **Pair a lock that is in pairing mode** and submit. Pairing takes 10 to 20 seconds and is retried automatically if the first Bluetooth session drops.
+4. Name the lock on Home Assistant's success screen; its entities follow that name.
+
+Pair with a good signal: a padlock's metal body blocks its antenna in some directions, so turn it to face the proxy, or hold it close to the proxy for the minute pairing takes. The keys are saved the moment the lock accepts them, so a pairing interrupted halfway, or a dialog closed too early, can be finished by pairing again.
+
+A lock from a TTLock account cannot be paired here while that account still lists it: delete it in the app first (which resets it), then reconfigure the account entry here.
+
+## The panel
+
+**BTR TTLock** in the sidebar (admins only) shows every lock:
+
+- whether it is in range, with the signal and the proxy that heard it last, its state and battery;
+- **Unlock**, **Read from lock** (reads its fingerprint, card and passcode lists now) and, where the lock has one, its **keypad admin code**;
+- its fingerprints, cards and passcodes, each with **Name** and **Delete** (and **Change** for passcodes), and **Add** for each type the lock supports;
+- **Remove** for a lock added by pairing or by a manual key: either factory-reset it first, or only forget it. For a lock from a TTLock account this is **Factory reset**.
+
+When a step needs the lock and it has not been heard in the last few seconds, the panel asks you to touch it and waits for it to wake. Enrolment then guides you through it: hold the card to the reader, or place the same finger several times until it says *Enrolled*.
+
+Passcodes are stored only as a digest, and shown as their first digit and last two (`1•••56`). That is why changing a passcode asks for the current code.
+
+## Actions
+
+All of them take a `device_id` and need a key with admin rights (every key from pairing, and the owner's key from an account):
+
+| Action | What it does |
+|---|---|
+| `btr_ttlock_ble.add_passcode` | Add a keypad code, with an optional name and validity window. |
+| `btr_ttlock_ble.change_passcode` | Replace a code with a new one, keeping its type, window and name. |
+| `btr_ttlock_ble.delete_passcode` | Delete a code by its digits. |
+| `btr_ttlock_ble.add_card` | Wait for a card at the reader and enrol it. Returns the card number. |
+| `btr_ttlock_ble.delete_card` | Delete a card by its number. |
+| `btr_ttlock_ble.add_fingerprint` | Wait for the same finger several times and enrol it. Returns the fingerprint number. |
+| `btr_ttlock_ble.delete_fingerprint` | Delete a fingerprint by its number. |
+
+Enrolment fires `btr_ttlock_ble_enrollment` events with a `stage` of `waiting`, `scan_accepted` (with a `scans` count), `enrolled` (with the `number`) or `failed`, so a dashboard or automation can tell the person at the lock what to do.
+
+## Bluetooth proxies
+
+Most locks sleep between uses and only send short broadcasts. Two proxy settings make the difference between commands that land at once and commands that time out:
+
+```yaml
+esphome:
+  # ...
+  platformio_options:
+    build_flags:
+      - -DBTM_BLE_SCAN_FAST_INT=56
+      - -DBTM_BLE_SCAN_FAST_WIN=56
+
+esp32_ble_tracker:
+  scan_parameters:
+    interval: 1100ms
+    window: 1100ms
+    active: true
+
+bluetooth_proxy:
+  active: true
+```
+
+- **Scan window**: the stock `esp32-generic` proxy package listens 30 ms out of every 320 ms, which misses most of a sleepy padlock's broadcasts. Listening the whole time (`interval` equal to `window`) catches them.
+- **Connection timing**: while opening a connection the ESP32 listens 30 ms out of every 60 ms, a cycle a lock's broadcast interval can keep missing. The two build flags (in units of 0.625 ms, so 35 ms) close that gap.
+- **Signal**: about -80 dBm or better connects reliably; -90 dBm and below mostly fails. The panel and the *Signal strength* sensor show it. A padlock's orientation alone can be worth 20 dB.
+- **Slots**: an ESP32 proxy has three connection slots by default. Other Bluetooth devices connected through the same proxy (battery monitors, for instance) use them too.
+- Keep the proxy's `logger` at `WARN`: on a Wi-Fi proxy the log stream shares the radio with Bluetooth.
+
+## Running it next to the original
+
+The original [`ttlock_ble`](https://github.com/roquerodrigo/ha-ttlock-ble) integration and this one use different domains, so both can be installed. A lock should be set up in only one of them, since each Bluetooth session needs the lock to itself. To move a lock over, delete it from the original and add it here; a locally paired lock's keys do not move between the two, so pair those again.
 
 ## Entities
 
@@ -81,58 +178,9 @@ The lock lists its fingerprints and cards completely, so one it no longer lists 
 
 Names and the known credentials are kept across restarts. The lists say nothing about cyclic (day-of-week or time-range) restrictions, so a credential shown here may still be limited to certain days or hours.
 
-## Installation
-
-1. Install via HACS using the button above, or add this repo as a custom HACS repository (category: Integration).
-2. Restart Home Assistant.
-3. Settings → Devices & Services → either pick the **TTLock BLE** card already waiting under *Discovered* (any lock in range of a radio Home Assistant manages announces itself), or Add Integration → **TTLock BLE**.
-4. Choose how the keys are obtained:
-   - **Sign in to a TTLock account** — pick the app your account was created in (*TTLock / DLock-XP*, or *Schlage Breeze*), then enter the email + password you use in it. If TTLock has never seen this Home Assistant before it emails a verification code; paste it into the next step. Every lock on the account is synced at once.
-   - **Enter a lock key manually** — for a lock initialised outside the cloud. See below.
-5. From this point on, all lock / unlock / state operations stay on Bluetooth.
-
-### Adding a lock without a TTLock account
-
-A lock initialised by a local BLE bridge never goes through the cloud, and its owner already holds what Bluetooth needs. That key can be entered directly, one lock per entry:
-
-| Field | Notes |
-|---|---|
-| Lock MAC address | `AA:BB:CC:DD:EE:FF` |
-| AES key | 16 bytes, continuous hex or separated (`2c,3d,…`) |
-| Unlock key | digits, entered verbatim — not the obfuscated form the cloud returns |
-| Admin passcode | optional, digits; only needed for managing passcodes |
-| Protocol type / version / scene / group ID / organisation ID | the frame header the lock expects. The defaults (5, 3, 2, 1, 1) suit most V3 locks |
-
-Started from a discovered lock, the MAC address, the name and the first three protocol numbers arrive pre-filled from the advertisement — the keys are all that is left to type.
-
-Only these reach the wire. The rest of what the cloud returns per key — user id, lock-flag position, validity window — is never read by the Bluetooth layer, which addresses the lock with a zeroed user id and the firmware's "permanent key" date literals regardless.
-
-If the lock is in range when the form is submitted, the protocol type, version and scene are checked against what it broadcasts, so a wrong value is caught there instead of becoming a lock that never answers. Getting a value wrong later is fixable through the integration's three-dot menu → **Reconfigure**.
-
-Reaching the lock takes no extra configuration: whatever Bluetooth radio Home Assistant already manages — USB dongle, built-in adapter, or an ESPHome proxy — is the one used.
-
-### Slow or failing commands through an ESPHome proxy
-
-If commands sent through an ESP32 proxy take 20 seconds or more, or fail every so often with the lock "not reachable", look at the *Connection time* and *Connection success rate* sensors. Sessions that either come up within a couple of seconds or not at all point at how the proxy listens for the lock, not at the signal.
-
-An idle lock advertises about every 0.9 s. While opening a connection, the ESP32's Bluetooth stack listens 30 ms out of every 60 ms, a cycle the lock's interval is a multiple of. An advertisement that falls in the half the proxy is not listening to therefore keeps falling there, and the attempt runs out its 20 seconds.
-
-Making the proxy listen for the whole interval removes the blind half. In the proxy's ESPHome configuration, on the ESP-IDF framework:
-
-```yaml
-esphome:
-  build_flags:
-    - -DBTM_BLE_SCAN_FAST_INT=56
-    - -DBTM_BLE_SCAN_FAST_WIN=56
-```
-
-Both values are in units of 0.625 ms, so 56 is 35 ms. They replace defaults of the ESP-IDF Bluetooth stack that ESPHome has no option for, and apply to every connection the proxy opens. Measured on an ESP32-C6 running ESPHome 2026.10 with one lock: before, roughly two connection attempts in three timed out; after, 45 of 45 connected on the first attempt, typically in about 2 seconds.
-
-Keep the proxy's `logger` at `WARN` as well. On a Wi-Fi proxy the log stream shares the radio with Bluetooth, and more verbose levels can slow connections down.
-
 ## Options
 
-Settings → Devices & Services → TTLock BLE → **Configure** exposes one setting:
+Settings → Devices & Services → BTR TTLock BLE → **Configure** exposes one setting:
 
 - `permanent_connection` (default off) — hold a BLE session open and read the actual lock state immediately after connecting, then wait two seconds between completed reads. These requests can prevent the firmware from closing an idle session, keeping push notifications available; they also reconcile the bolt position when a notification is missed. While the session is held the lock stops advertising, so the operation log is read after every push instead. A dropped connection is still reopened immediately. The reads add BLE traffic and processing on the lock; battery impact has not been measured. With the option off there are no periodic state reads or background reconnects.
 
@@ -150,89 +198,25 @@ TTLock firmware can close idle BLE sessions within seconds; the timeout depends 
 4. A push listener is registered before connecting, so notifications arriving during connection setup are not discarded. Each push event carries the decoded `lock_state` and `battery` when the firmware emits a heartbeat-style payload, letting the entities update without a follow-up query.
 5. While a session is open anyway, the lock is asked what it is — model, hardware and firmware — and the answer is remembered, so a restart shows it without connecting.
 
-## Useful commands
+## Development
+
+The integration lives in `custom_components/btr_ttlock_ble`. Its Bluetooth protocol code is the [`ttlock-ble`](https://github.com/roquerodrigo/ttlock-ble) SDK, extended with credential management and pairing, and vendored under `custom_components/btr_ttlock_ble/sdk` (see `sdk/VENDORED_FROM`), so Home Assistant installs nothing from PyPI.
 
 ```bash
-scripts/setup      # install dependencies (uv sync, dev + lint groups)
-scripts/develop    # start Home Assistant in debug mode with the integration loaded
-
-# Lint and test directly (config lives in pyproject.toml):
-uv run ruff format --check .
-uv run ruff check .
-uv run mypy custom_components/ttlock_ble
+uv sync --all-groups
+uv run ruff format --check . && uv run ruff check . && uv run mypy custom_components/btr_ttlock_ble
 uv run pytest
 ```
 
-HA runs with config in `config/` and `PYTHONPATH` pointing at the repo root. To reset entity/device IDs during development:
+The tests need Linux (Home Assistant's test harness does).
 
-```bash
-rm config/.storage/core.entity_registry config/.storage/core.device_registry
-```
+## Credits
 
-## Layout
-
-```
-custom_components/ttlock_ble/
-├── __init__.py        # config-entry lifecycle: setup / unload / reload
-├── advertisement.py   # TtlockBleAdvertisementTracker: state from advertisements
-├── api.py             # TtlockBleApiClient: TTLockCloud wrapper (cloud bootstrap only)
-├── binary_sensor.py   # TtlockBleConnectionBinarySensor + TtlockBleDoorBinarySensor
-├── brand/             # icon / logo PNGs (local placeholder for HA brand registry)
-├── button.py          # TtlockBleRefreshFingerprintsButton: force a fingerprint read (admin keys only)
-├── config_flow.py     # menu / bluetooth / cloud / manual / verify_code / reauth / reconfigure
-├── connection.py      # TtlockBleConnection: persistent BLE session per lock
-├── connection_quality.py # recent BLE session attempts: success rate, connect time
-├── credential_resolver.py  # TtlockBleCredentialResolver: type, identifier and name behind a log record
-├── credential_type.py      # TtlockBleCredentialType: the credential each record type names
-├── const.py           # DOMAIN, LOGGER, defaults
-├── coordinator.py     # DataUpdateCoordinator polling each connection
-├── data/              # one TypedDict/dataclass per file + type aliases in __init__.py
-├── device_description_store.py  # per-lock model / hardware / firmware, persisted
-├── diagnostics.py     # redacted credentials/keys
-├── entity.py          # base CoordinatorEntity with DeviceInfo
-├── event.py           # TtlockBleLogEvent: operation-log records as HA events
-├── exceptions/        # one file per exception class
-├── credential_store.py     # persisted fingerprints, cards, passcodes and their names per lock
-├── credential_tracker.py   # one name entity per known credential, restored and pruned
-├── lock.py            # TtlockBleLock: LockEntity backed by the connection
-├── manifest.json
-├── manual_key.py      # TtlockBleManualKey: key entry for cloud-less locks
-├── options_flow.py    # TtlockBleOptionsFlow: permanent_connection
-├── passcode_ledger.py # TtlockBlePasscodeLedger: passcodes learned and forgotten from the log
-├── clock_sync_store.py # persisted clock comparison per lock
-├── record_store.py    # persisted operation-log cursor per lock
-├── sensor.py          # battery, last-seen, connection quality, clock-drift, credential counts, last-unlocked-by
-├── switch.py          # TtlockBleSoundSwitch: the lock's beep (admin keys only)
-├── text.py            # name entities: whose each fingerprint, card and passcode is
-└── translations/
-    ├── en.json
-    ├── he.json
-    └── pt-BR.json
-```
-
-Conventions for contributors live in [`CODE_STYLE.md`](./CODE_STYLE.md); architectural notes for AI agents in [`CLAUDE.md`](./CLAUDE.md).
-
-## Pre-commit hooks
-
-Install once per clone (after `scripts/setup`):
-
-```bash
-pre-commit install
-```
-
-This wires ruff, mypy and basic file hygiene checks (`.pre-commit-config.yaml`) into every commit, mirroring the CI lint job.
-
-## CI
-
-- **`ci.yml`** — lint (ruff check + format, mypy) and tests (pytest with the 90 % coverage gate) via the shared reusable workflows, and the Home Assistant Marketplace validation (`hassfest` and the catalog checks) of [Home Assistant Autopilot](https://github.com/marketplace/actions/home-assistant-autopilot)
-- **`codeql.yml`** — GitHub CodeQL security scan; push/PR to `main` and a weekly cron
-- **`release.yml`** — [Release Autopilot](https://github.com/marketplace/actions/release-autopilot), gated on a green CI run on `main` or started manually, opens a release PR based on conventional commits; when a release is created, attaches the `ttlock_ble.zip` that HACS downloads
-- **`auto-assign.yml`** — assigns the repository owner to new issues and pull requests
-
-## Support
-
-This integration is built and maintained on personal time, on hardware bought for the purpose. If it is useful to you, consider [sponsoring the work](https://github.com/sponsors/roquerodrigo) — it keeps the devices, the testing and the releases coming.
+- [Rodrigo Roque](https://github.com/roquerodrigo) wrote the original [ha-ttlock-ble](https://github.com/roquerodrigo/ha-ttlock-ble) integration and [ttlock-ble](https://github.com/roquerodrigo/ttlock-ble) SDK this builds on.
+- The pairing and factory-reset sequences follow [kind3r/ttlock-sdk-js](https://github.com/kind3r/ttlock-sdk-js), which also documented much of the credential protocol.
 
 ## License
 
-[MIT](LICENSE)
+GNU General Public License v3.0 or later, see [LICENSE](LICENSE). It includes code from ha-ttlock-ble and ttlock-ble, released under the MIT License ([LICENSE-MIT](LICENSE-MIT)), and follows kind3r/ttlock-sdk-js (GPL-3.0). See [NOTICE](NOTICE).
+
+This project is not affiliated with TTLock, Sciener or any lock manufacturer.

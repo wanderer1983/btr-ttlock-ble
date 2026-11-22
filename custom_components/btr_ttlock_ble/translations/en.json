@@ -1,0 +1,388 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Set up BTR TTLock BLE",
+        "description": "Choose how this Home Assistant gets the keys for your locks.",
+        "menu_options": {
+          "pair": "Pair a lock that is in pairing mode",
+          "cloud": "Sign in to a TTLock account",
+          "manual": "Enter a lock key manually"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Set up BTR TTLock BLE",
+        "description": "**{name}** was found over Bluetooth. Its address and protocol header are already known; what is still missing are its keys, which live either in a TTLock account or in whatever provisioned the lock locally.",
+        "menu_options": {
+          "pair": "Pair a lock that is in pairing mode",
+          "cloud": "Sign in to a TTLock account",
+          "manual": "Enter this lock's key manually"
+        }
+      },
+      "cloud": {
+        "title": "Set up BTR TTLock BLE",
+        "description": "Enter your TTLock cloud credentials. They are used once to download the per-lock keys; after that, lock/unlock runs offline over Bluetooth.",
+        "data": {
+          "username": "Email",
+          "password": "Password",
+          "cloud_app": "App"
+        },
+        "data_description": {
+          "cloud_app": "The TTLock-based app your account was created in. Accounts are separate per app, even with the same email."
+        }
+      },
+      "manual": {
+        "title": "Enter a lock key manually",
+        "description": "For a lock initialised outside the TTLock cloud. Enter the values your local setup produced; they are stored on this entry and used directly over Bluetooth, with no account involved. The AES key accepts either continuous hex or separated bytes. The five protocol numbers form the frame header the lock expects — the defaults suit most V3 locks, and if the lock is in range the first three are checked against what it broadcasts.",
+        "data": {
+          "lock_mac": "Lock MAC address",
+          "aes_key": "AES key",
+          "unlock_key": "Unlock key",
+          "admin_passcode": "Admin passcode (optional)",
+          "lock_name": "Name (optional)",
+          "protocol_type": "Protocol type",
+          "protocol_version": "Protocol version",
+          "scene": "Scene",
+          "group_id": "Group ID",
+          "org_id": "Organisation ID"
+        }
+      },
+      "verify_code": {
+        "title": "Verify your TTLock account",
+        "description": "TTLock sent a one-time code to your email. Enter it below to register this Home Assistant install as a trusted device.",
+        "data": {
+          "verification_code": "Verification code"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate BTR TTLock BLE",
+        "description": "Your credentials are no longer valid. Enter the updated credentials.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure BTR TTLock BLE",
+        "description": "Update the credentials for this entry. Keys will be re-synced from the cloud.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
+      },
+      "reconfigure_manual": {
+        "title": "Update the lock key",
+        "description": "Correct the values stored for this lock. No cloud account is involved.",
+        "data": {
+          "lock_mac": "Lock MAC address",
+          "aes_key": "AES key",
+          "unlock_key": "Unlock key",
+          "admin_passcode": "Admin passcode (optional)",
+          "lock_name": "Name (optional)",
+          "protocol_type": "Protocol type",
+          "protocol_version": "Protocol version",
+          "scene": "Scene",
+          "group_id": "Group ID",
+          "org_id": "Organisation ID"
+        }
+      },
+      "pair": {
+        "title": "Pair a lock with Home Assistant",
+        "description": "Home Assistant becomes the lock's admin and keeps its keys. Put the lock in pairing mode first: a new lock is in it out of the box; a used one after a factory reset (usually a reset button or holding a keypad key). A lock paired this way is not on any TTLock account, so the TTLock app cannot open it.",
+        "data": {
+          "lock": "Lock in pairing mode"
+        }
+      }
+    },
+    "error": {
+      "auth": "Email or password is incorrect.",
+      "connection": "Unable to reach the TTLock cloud.",
+      "invalid_code": "The verification code was not accepted. Please try again.",
+      "verification_required": "TTLock requires verifying this device. Re-add the integration to complete the flow.",
+      "unknown": "Unknown error occurred.",
+      "invalid_mac": "Enter a MAC address in the form AA:BB:CC:DD:EE:FF.",
+      "invalid_aes_key": "The AES key must be 16 bytes of hex.",
+      "invalid_unlock_key": "The unlock key must be digits only.",
+      "invalid_admin_passcode": "The admin passcode must be digits only.",
+      "protocol_mismatch": "The lock is broadcasting a different protocol type, version or scene than the one entered. Check the values against your lock data.",
+      "lock_not_in_account": "This account holds no key for the lock that was found. Sign in with the account that owns it, or enter its key manually.",
+      "no_lock_in_pairing_mode": "No lock in pairing mode is in range of a Bluetooth adapter or proxy. Put the lock in pairing mode, wake it, and try again."
+    },
+    "abort": {
+      "already_configured": "This lock or account is already configured.",
+      "reauth_successful": "Re-authentication was successful.",
+      "reconfigure_successful": "Reconfiguration was successful.",
+      "wrong_account": "The credentials entered belong to a different TTLock account. Re-authenticate with the account this entry was created from.",
+      "not_a_lock": "This Bluetooth device is not a TTLock lock.",
+      "pairing_failed": "The lock was not paired: {error}"
+    },
+    "progress": {
+      "pairing": "Pairing **{name}**. Keep the lock awake and within reach of a Bluetooth proxy; this takes a few seconds."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "BTR TTLock BLE options",
+        "description": "Behaviour for this entry.",
+        "data": {
+          "permanent_connection": "Permanent connection"
+        },
+        "data_description": {
+          "permanent_connection": "Hold a BLE session open and reopen it the moment it drops. Off, the lock is connected to only to run a command or to read records it says it has; state and battery come from its advertisements, which cost no session at all. On, commands answer immediately, at the cost of the lock's battery."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "connection": {
+        "name": "Bluetooth connection"
+      },
+      "door": {
+        "name": "Door"
+      }
+    },
+    "button": {
+      "refresh_credentials": {
+        "name": "Refresh credentials"
+      }
+    },
+    "event": {
+      "log": {
+        "name": "Log",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "unlock": "Unlock",
+              "lock": "Lock",
+              "unlock_failed": "Unlock failed",
+              "password_change": "Password change",
+              "other": "Other"
+            }
+          }
+        }
+      }
+    },
+    "lock": {
+      "lock": {
+        "name": "Lock"
+      }
+    },
+    "sensor": {
+      "battery": {
+        "name": "Battery"
+      },
+      "card_count": {
+        "name": "Enrolled cards"
+      },
+      "clock_drift": {
+        "name": "Clock drift"
+      },
+      "connect_time": {
+        "name": "Connection time"
+      },
+      "connection_success_rate": {
+        "name": "Connection success rate"
+      },
+      "fingerprint_count": {
+        "name": "Enrolled fingerprints"
+      },
+      "last_seen": {
+        "name": "Last seen"
+      },
+      "last_unlocked_by": {
+        "name": "Last unlocked by"
+      },
+      "signal_quality": {
+        "name": "Signal quality"
+      },
+      "signal_strength": {
+        "name": "Signal strength"
+      }
+    },
+    "switch": {
+      "sound": {
+        "name": "Sound"
+      }
+    },
+    "text": {
+      "card_name": {
+        "name": "Card {label}"
+      },
+      "fingerprint_name": {
+        "name": "Fingerprint {label}"
+      },
+      "passcode_name": {
+        "name": "Passcode {label}"
+      }
+    }
+  },
+  "exceptions": {
+    "credentials_not_read": {
+      "message": "Could not read the credentials of {lock}. Make sure the lock is in range and try again."
+    },
+    "unknown_lock": {
+      "message": "Device {device_id} is not a BTR TTLock BLE lock that is set up."
+    },
+    "not_admin": {
+      "message": "{lock} was added with a key that has no admin passcode, so its credentials cannot be changed."
+    },
+    "end_before_start": {
+      "message": "The end of the validity period must be after its start."
+    },
+    "credential_action_failed": {
+      "message": "{lock} did not complete the change: {error}"
+    },
+    "credential_not_found": {
+      "message": "{lock} holds no credential numbered {credential}."
+    },
+    "lock_asleep": {
+      "message": "{lock} is asleep and not advertising, so it cannot be reached. Touch it to wake it, then try again."
+    },
+    "passcode_not_listed": {
+      "message": "{lock} does not list that passcode. Delete it by typing its digits instead."
+    }
+  },
+  "selector": {
+    "cloud_app": {
+      "options": {
+        "dlock_xp": "TTLock / DLock-XP",
+        "schlage_breeze": "Schlage Breeze"
+      }
+    }
+  },
+  "services": {
+    "add_passcode": {
+      "name": "Add passcode",
+      "description": "Adds a keypad passcode to the lock over Bluetooth.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "passcode": {
+          "name": "Passcode",
+          "description": "4 to 9 digits."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Who the credential belongs to. Shown in the lock's history."
+        },
+        "start": {
+          "name": "Valid from",
+          "description": "Leave empty for no start date."
+        },
+        "end": {
+          "name": "Valid until",
+          "description": "Leave empty to keep it valid for good."
+        }
+      }
+    },
+    "delete_passcode": {
+      "name": "Delete passcode",
+      "description": "Removes a keypad passcode from the lock.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "passcode": {
+          "name": "Passcode",
+          "description": "4 to 9 digits."
+        }
+      }
+    },
+    "change_passcode": {
+      "name": "Change passcode",
+      "description": "Replaces a keypad passcode with a new one, keeping its validity and name. The new code is added before the old one is removed.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "passcode": {
+          "name": "Current passcode",
+          "description": "The code to replace."
+        },
+        "new_passcode": {
+          "name": "New passcode",
+          "description": "4 to 9 digits."
+        }
+      }
+    },
+    "add_card": {
+      "name": "Add card",
+      "description": "Puts the lock in card-enrolment mode and waits for a card to be held to the reader. Returns the new card's number.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Who the credential belongs to. Shown in the lock's history."
+        },
+        "start": {
+          "name": "Valid from",
+          "description": "Leave empty for no start date."
+        },
+        "end": {
+          "name": "Valid until",
+          "description": "Leave empty to keep it valid for good."
+        }
+      }
+    },
+    "delete_card": {
+      "name": "Delete card",
+      "description": "Removes a card from the lock.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "card": {
+          "name": "Card number",
+          "description": "The number shown on the card's name entity."
+        }
+      }
+    },
+    "add_fingerprint": {
+      "name": "Add fingerprint",
+      "description": "Puts the lock in fingerprint-enrolment mode. Place the same finger on the sensor each time the lock asks. Returns the new fingerprint's number.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Who the credential belongs to. Shown in the lock's history."
+        },
+        "start": {
+          "name": "Valid from",
+          "description": "Leave empty for no start date."
+        },
+        "end": {
+          "name": "Valid until",
+          "description": "Leave empty to keep it valid for good."
+        }
+      }
+    },
+    "delete_fingerprint": {
+      "name": "Delete fingerprint",
+      "description": "Removes a fingerprint from the lock.",
+      "fields": {
+        "device_id": {
+          "name": "Lock",
+          "description": "The TTLock lock to change."
+        },
+        "fingerprint": {
+          "name": "Fingerprint number",
+          "description": "The number shown on the fingerprint's name entity."
+        }
+      }
+    }
+  }
+}

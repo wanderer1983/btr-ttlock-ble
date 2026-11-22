@@ -1,7 +1,8 @@
 [project]
-name = "ha-ttlock-ble"
-version = "3.13.0"
-description = "Home Assistant integration for DLock-XP / TTLock smart locks (BLE)"
+name = "btr-ttlock-ble"
+version = "1.0.0"
+description = "Home Assistant integration for TTLock locks over Bluetooth: pairing, credentials and a sidebar panel"
+license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.14.2"
 
 [tool.uv]
@@ -30,16 +31,16 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = [
-    "--cov=custom_components/ttlock_ble",
+    "--cov=custom_components/btr_ttlock_ble",
     "--cov-report=term-missing",
     "--cov-fail-under=90",
 ]
 
 [tool.mypy]
 python_version = "3.14"
-files = ["custom_components/ttlock_ble"]
+files = ["custom_components/btr_ttlock_ble"]
 explicit_package_bases = true
-exclude = ["custom_components/ttlock_ble/sdk/"]
+exclude = ["custom_components/btr_ttlock_ble/sdk/"]
 ignore_missing_imports = true
 follow_imports = "silent"
 strict_optional = true
@@ -59,7 +60,7 @@ check_untyped_defs = false
 [tool.ruff]
 target-version = "py314"
 # Vendored from wanderer/ttlock-ble, which lints and tests it under its own rules.
-extend-exclude = ["custom_components/ttlock_ble/sdk"]
+extend-exclude = ["custom_components/btr_ttlock_ble/sdk"]
 
 [tool.ruff.format]
 exclude = ["*.md"]  # ruff 0.16 formats Python blocks in Markdown; docs keep their own layout
@@ -86,4 +87,4 @@ max-complexity = 25
 "scripts/*.py" = ["INP001", "S603", "T201"]
 
 [tool.coverage.run]
-omit = ["custom_components/ttlock_ble/sdk/*"]
+omit = ["custom_components/btr_ttlock_ble/sdk/*"]

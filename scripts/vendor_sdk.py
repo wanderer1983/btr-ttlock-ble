@@ -1,5 +1,5 @@
 """
-Copy the ttlock-ble SDK into the integration as `custom_components/ttlock_ble/sdk`.
+Copy the ttlock-ble SDK into the integration as `custom_components/btr_ttlock_ble/sdk`.
 
 This fork ships the SDK inside the integration instead of pinning it from
 PyPI: the credential-management commands it relies on exist only in the

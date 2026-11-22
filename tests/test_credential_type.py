@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from custom_components.ttlock_ble.credential_type import (
+from custom_components.btr_ttlock_ble.credential_type import (
     _RECORD_TYPES_BY_CREDENTIAL,
     TtlockBleCredentialType,
 )
-from custom_components.ttlock_ble.sdk import LogOperate
+from custom_components.btr_ttlock_ble.sdk import LogOperate
 
 
 @pytest.mark.parametrize(
@@ -45,7 +45,7 @@ def test_no_record_type_belongs_to_two_credentials() -> None:
 
 def test_every_passcode_record_is_withheld() -> None:
     """A record typed as a passcode carries the code, so it must be redacted."""
-    from custom_components.ttlock_ble.credential_resolver import (
+    from custom_components.btr_ttlock_ble.credential_resolver import (
         PASSCODE_RECORD_TYPES,
     )
 

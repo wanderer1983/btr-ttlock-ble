@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from custom_components.ttlock_ble.connection_quality import (
+from custom_components.btr_ttlock_ble.connection_quality import (
     CONNECTION_ATTEMPT_WINDOW,
     TtlockBleConnectionQuality,
 )

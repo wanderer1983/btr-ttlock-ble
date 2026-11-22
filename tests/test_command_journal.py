@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import datetime as dt
 
-from custom_components.ttlock_ble.command_journal import (
+from custom_components.btr_ttlock_ble.command_journal import (
     COMMAND_MATCH_TOLERANCE,
     TtlockBleCommandJournal,
 )
-from custom_components.ttlock_ble.data import TtlockBleIssuedCommand
-from custom_components.ttlock_ble.lock_command import TtlockBleLockCommand
+from custom_components.btr_ttlock_ble.data import TtlockBleIssuedCommand
+from custom_components.btr_ttlock_ble.lock_command import TtlockBleLockCommand
 
 MAC = "AA:BB:CC:DD:EE:FF"
 STARTED_AT = dt.datetime(2026, 10, 28, 10, 0, 0)  # noqa: DTZ001 — lock RTC is naive

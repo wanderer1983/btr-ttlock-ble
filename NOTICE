@@ -1,0 +1,16 @@
+BTR TTLock BLE
+
+Copyright (C) 2026 wanderer1983
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your
+option) any later version. See LICENSE.
+
+It is based on ha-ttlock-ble and ttlock-ble by Rodrigo Roque, released
+under the MIT License (see LICENSE-MIT); that notice still covers the
+code taken from them, including the SDK vendored under
+custom_components/btr_ttlock_ble/sdk.
+
+Lock pairing and factory reset follow the sequence in
+kind3r/ttlock-sdk-js, released under the GNU General Public License v3.0.

@@ -10,8 +10,8 @@ from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.ttlock_ble.const import DOMAIN
-from custom_components.ttlock_ble.exceptions import (
+from custom_components.btr_ttlock_ble.const import DOMAIN
+from custom_components.btr_ttlock_ble.exceptions import (
     TtlockBleApiClientAuthenticationError,
     TtlockBleApiClientCommunicationError,
     TtlockBleApiClientError,
@@ -21,7 +21,7 @@ from custom_components.ttlock_ble.exceptions import (
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from custom_components.ttlock_ble.sdk import VirtualKey
+    from custom_components.btr_ttlock_ble.sdk import VirtualKey
 
 
 USER_INPUT = {"username": "user@example.com", "password": "pass"}
@@ -37,7 +37,9 @@ def _patch_client(
     request_code_side_effect: Exception | None = None,
     validate_side_effect: Exception | None = None,
 ) -> Iterator[MagicMock]:
-    with patch("custom_components.ttlock_ble.config_flow.TtlockBleApiClient") as cls:
+    with patch(
+        "custom_components.btr_ttlock_ble.config_flow.TtlockBleApiClient"
+    ) as cls:
         instance = MagicMock()
         instance.async_login = AsyncMock(side_effect=login_side_effect)
         instance.async_request_verification_code = AsyncMock(
@@ -146,7 +148,9 @@ async def test_key_sync_failure_reshows_the_form(
     enable_custom_integrations,
 ) -> None:
     """A blip after the credentials were accepted must not crash the flow."""
-    with patch("custom_components.ttlock_ble.config_flow.TtlockBleApiClient") as cls:
+    with patch(
+        "custom_components.btr_ttlock_ble.config_flow.TtlockBleApiClient"
+    ) as cls:
         instance = MagicMock()
         instance.async_login = AsyncMock(return_value=None)
         instance.async_list_keys = AsyncMock(
@@ -167,7 +171,9 @@ async def test_key_sync_failure_after_verification_reshows_the_code_form(
     enable_custom_integrations,
 ) -> None:
     """The same applies to the leg that already consumed a verification code."""
-    with patch("custom_components.ttlock_ble.config_flow.TtlockBleApiClient") as cls:
+    with patch(
+        "custom_components.btr_ttlock_ble.config_flow.TtlockBleApiClient"
+    ) as cls:
         instance = MagicMock()
         # Only the first login trips 2FA; the one inside the key sync succeeds.
         instance.async_login = AsyncMock(
@@ -736,7 +742,9 @@ async def test_key_sync_failures_map_to_their_error_keys(
     expected,
 ) -> None:
     """Each cloud failure during the key sync gets its own form error."""
-    with patch("custom_components.ttlock_ble.config_flow.TtlockBleApiClient") as cls:
+    with patch(
+        "custom_components.btr_ttlock_ble.config_flow.TtlockBleApiClient"
+    ) as cls:
         instance = MagicMock()
         instance.async_login = AsyncMock(return_value=None)
         instance.async_list_keys = AsyncMock(side_effect=side_effect)
@@ -755,7 +763,9 @@ async def test_reauth_key_sync_failure_reshows_the_form(
 ) -> None:
     """The reauth leg re-shows its form too, instead of aborting the flow."""
     entry = _existing_entry(hass)
-    with patch("custom_components.ttlock_ble.config_flow.TtlockBleApiClient") as cls:
+    with patch(
+        "custom_components.btr_ttlock_ble.config_flow.TtlockBleApiClient"
+    ) as cls:
         instance = MagicMock()
         instance.async_login = AsyncMock(return_value=None)
         instance.async_list_keys = AsyncMock(

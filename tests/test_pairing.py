@@ -10,14 +10,14 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.ttlock_ble.const import DOMAIN
-from custom_components.ttlock_ble.pairing import (
+from custom_components.btr_ttlock_ble.const import DOMAIN
+from custom_components.btr_ttlock_ble.pairing import (
     TtlockBlePairing,
     async_get_pairing_store,
     async_pair_lock,
     async_pairable_locks,
 )
-from custom_components.ttlock_ble.sdk import (
+from custom_components.btr_ttlock_ble.sdk import (
     LockVersion,
     PairingError,
     PairingResult,
@@ -69,18 +69,18 @@ def lock_in_range():
     info = _info()
     with (
         patch(
-            "custom_components.ttlock_ble.pairing.async_last_service_info",
+            "custom_components.btr_ttlock_ble.pairing.async_last_service_info",
             return_value=info,
         ),
         patch(
-            "custom_components.ttlock_ble.pairing.async_discovered_service_info",
+            "custom_components.btr_ttlock_ble.pairing.async_discovered_service_info",
             return_value=[
                 info,
                 _info(flags=0, address="11:22:33:44:55:66", name="paired"),
             ],
         ),
         patch(
-            "custom_components.ttlock_ble.pairing.async_ble_device_from_address",
+            "custom_components.btr_ttlock_ble.pairing.async_ble_device_from_address",
             return_value=MagicMock(address=MAC),
         ),
     ):
@@ -94,7 +94,7 @@ def pairing_client():
     client.disconnect = AsyncMock()
     client.initialize = AsyncMock(return_value=_result())
     with patch(
-        "custom_components.ttlock_ble.pairing.TTLockClient.for_pairing",
+        "custom_components.btr_ttlock_ble.pairing.TTLockClient.for_pairing",
         return_value=client,
     ) as for_pairing:
         client.for_pairing = for_pairing
@@ -132,7 +132,7 @@ async def test_pair_lock_stores_the_keys_before_returning(
     assert framed_with.scene == 1
     # Once the lock has left setting mode, the kept keys are what it answers to.
     with patch(
-        "custom_components.ttlock_ble.pairing.async_last_service_info",
+        "custom_components.btr_ttlock_ble.pairing.async_last_service_info",
         return_value=_info(flags=0),
     ):
         again = await async_pair_lock(hass, MAC, "Garage")
@@ -181,7 +181,7 @@ async def test_pair_lock_refuses_a_lock_not_in_setting_mode(
 ) -> None:
     with (
         patch(
-            "custom_components.ttlock_ble.pairing.async_last_service_info",
+            "custom_components.btr_ttlock_ble.pairing.async_last_service_info",
             return_value=_info(flags=0),
         ),
         pytest.raises(TTLockError, match="not advertising"),
@@ -266,7 +266,7 @@ async def test_pair_with_no_lock_in_range_says_so(
     hass, enable_custom_integrations
 ) -> None:
     with patch(
-        "custom_components.ttlock_ble.pairing.async_discovered_service_info",
+        "custom_components.btr_ttlock_ble.pairing.async_discovered_service_info",
         return_value=[],
     ):
         result = await hass.config_entries.flow.async_init(
@@ -303,7 +303,7 @@ async def test_a_pairing_left_unfinished_is_offered_again(
     store = await async_get_pairing_store(hass)
     await store.async_put(_pairing())
     with patch(
-        "custom_components.ttlock_ble.pairing.async_discovered_service_info",
+        "custom_components.btr_ttlock_ble.pairing.async_discovered_service_info",
         return_value=[],
     ):
         result = await hass.config_entries.flow.async_init(
@@ -481,7 +481,7 @@ async def test_an_account_lock_cannot_be_removed_alone(
 
 
 def test_default_name_prefers_the_advertised_one() -> None:
-    from custom_components.ttlock_ble.pairing import default_lock_name
+    from custom_components.btr_ttlock_ble.pairing import default_lock_name
 
     assert default_lock_name(MAC, "P3_ddeeff") == "P3_ddeeff"
     assert default_lock_name(MAC, None) == "TTLock DDEEFF"
@@ -491,10 +491,12 @@ def test_default_name_prefers_the_advertised_one() -> None:
 async def test_pairing_forgets_what_was_kept_about_the_lock(
     hass, enable_custom_integrations, lock_in_range, pairing_client
 ) -> None:
-    from custom_components.ttlock_ble.credential_store import async_get_credential_store
-    from custom_components.ttlock_ble.credential_type import TtlockBleCredentialType
-    from custom_components.ttlock_ble.data import TtlockBleKnownCredential
-    from custom_components.ttlock_ble.record_store import async_get_record_store
+    from custom_components.btr_ttlock_ble.credential_store import (
+        async_get_credential_store,
+    )
+    from custom_components.btr_ttlock_ble.credential_type import TtlockBleCredentialType
+    from custom_components.btr_ttlock_ble.data import TtlockBleKnownCredential
+    from custom_components.btr_ttlock_ble.record_store import async_get_record_store
 
     credentials = await async_get_credential_store(hass)
     credentials.async_replace(
