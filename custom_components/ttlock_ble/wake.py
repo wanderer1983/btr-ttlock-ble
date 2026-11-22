@@ -17,10 +17,8 @@ from typing import TYPE_CHECKING
 
 from homeassistant.components.bluetooth import (
     MONOTONIC_TIME,
-    BluetoothCallbackMatcher,
-    BluetoothScanningMode,
     async_last_service_info,
-    async_register_callback,
+    async_register_advertisement_callback,
     async_scanner_by_source,
 )
 from homeassistant.core import callback
@@ -29,7 +27,6 @@ from .sdk import TTLockError
 
 if TYPE_CHECKING:
     from homeassistant.components.bluetooth import (
-        BluetoothChange,
         BluetoothServiceInfoBleak,
     )
     from homeassistant.core import HomeAssistant
@@ -42,6 +39,8 @@ ASLEEP_AFTER_SECONDS = 20.0
 # An advertisement at most this old counts as the lock being awake now,
 # so a wait for it returns at once.
 AWAKE_NOW_SECONDS = 3.0
+
+_HISTORY_POLL_SECONDS = 1.0
 
 
 class TtlockBleLockAsleepError(TTLockError):
@@ -95,24 +94,25 @@ async def async_wait_until_heard(
     woke: asyncio.Future[None] = hass.loop.create_future()
 
     @callback
-    def _on_advertisement(
-        service_info: BluetoothServiceInfoBleak, _change: BluetoothChange
-    ) -> None:
-        # Registering replays the last advertisement already held, which
-        # may be hours old; only a fresh one means the lock woke.
-        fresh = MONOTONIC_TIME() - service_info.time <= AWAKE_NOW_SECONDS
-        if fresh and not woke.done():
+    def _on_advertisement(_service_info: BluetoothServiceInfoBleak) -> None:
+        if not woke.done():
             woke.set_result(None)
 
-    unsubscribe = async_register_callback(
-        hass,
-        _on_advertisement,
-        BluetoothCallbackMatcher(address=mac, connectable=False),
-        BluetoothScanningMode.ACTIVE,
+    # Every packet, not just changed ones: a padlock waking up repeats
+    # the very payload it sent before it slept, which the change-driven
+    # callbacks drop as a duplicate.
+    unsubscribe = async_register_advertisement_callback(
+        hass, _on_advertisement, mac.upper()
     )
     try:
         async with asyncio.timeout(wait_seconds):
-            await woke
+            while not woke.done():
+                # Also watch the history, in case the packet that woke the
+                # lock reached HA by a path the callback does not see.
+                heard = async_last_heard(hass, mac)
+                if heard is not None and heard.seconds_ago <= AWAKE_NOW_SECONDS:
+                    break
+                await asyncio.wait({woke}, timeout=_HISTORY_POLL_SECONDS)
     except TimeoutError:
         return False
     finally:

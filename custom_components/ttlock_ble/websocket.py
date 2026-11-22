@@ -65,11 +65,12 @@ def _describe_lock(
     connection: TtlockBleConnection,
     coordinator: TtlockBleDataUpdateCoordinator,
     store: TtlockBleCredentialStore,
+    entry_id: str,
 ) -> dict[str, Any] | None:
     key = connection.key
     mac = key.lockMac
-    device = dr.async_get(hass).async_get_device(
-        identifiers={(DOMAIN, dr.format_mac(mac))}
+    device = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, dr.format_mac(mac)), entry_id
     )
     if device is None:
         return None
@@ -130,7 +131,9 @@ async def _async_all_locks(hass: HomeAssistant) -> list[dict[str, Any]]:
     for entry in hass.config_entries.async_loaded_entries(DOMAIN):
         runtime = entry.runtime_data
         for connection in runtime.connections.values():
-            described = _describe_lock(hass, connection, runtime.coordinator, store)
+            described = _describe_lock(
+                hass, connection, runtime.coordinator, store, entry.entry_id
+            )
             if described is not None:
                 locks.append(described)
     return sorted(locks, key=lambda lock: str(lock["name"]).casefold())

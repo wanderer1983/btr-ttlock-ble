@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -279,6 +280,30 @@ async def test_wait_until_heard_returns_at_once_when_just_heard(
         "custom_components.ttlock_ble.wake.async_last_heard", return_value=heard
     ):
         assert await async_wait_until_heard(hass, "AA:BB:CC:DD:EE:FF", 0.05)
+
+
+async def test_wait_until_heard_wakes_on_a_repeated_packet(
+    hass, enable_bluetooth
+) -> None:
+    """A woken padlock repeats its old payload; any packet must end the wait."""
+    registered = {}
+
+    def _register(_hass, callback, address):
+        registered["callback"], registered["address"] = callback, address
+        return lambda: registered.update(unsubscribed=True)
+
+    with patch(
+        "custom_components.ttlock_ble.wake.async_register_advertisement_callback",
+        _register,
+    ):
+        waiting = hass.async_create_task(
+            async_wait_until_heard(hass, "aa:bb:cc:dd:ee:ff", 5)
+        )
+        await asyncio.sleep(0)
+        registered["callback"](MagicMock())
+        assert await waiting
+    assert registered["address"] == "AA:BB:CC:DD:EE:FF"
+    assert registered["unsubscribed"]
 
 
 async def test_manage_refuses_a_sleeping_lock_without_connecting(
