@@ -14,6 +14,7 @@ const POLL_MS = 3000;
 // A lock heard this recently is awake enough to start a session at once.
 const AWAKE_NOW_S = 5;
 const WAKE_WAIT_S = 120;
+const DONE_VISIBLE_MS = 8000;
 
 const TYPES = {
   fingerprint: {
@@ -153,7 +154,14 @@ class TtlockBlePanel extends HTMLElement {
       }
       const done = await work();
       this._say(lock, done || "Done", "ok");
-      this._setJob(lock, { state: "done" });
+      const job = this._setJob(lock, { state: "done" });
+      // A finished job clears itself; a failed one stays until dismissed.
+      setTimeout(() => {
+        if (this._jobs[lock.device_id] === job) {
+          delete this._jobs[lock.device_id];
+          this._render();
+        }
+      }, DONE_VISIBLE_MS);
     } catch (err) {
       this._say(lock, errorText(err), "error");
       this._setJob(lock, { state: "failed" });
@@ -469,13 +477,15 @@ class TtlockBlePanel extends HTMLElement {
         : `<div class="empty">No TTLock BLE locks are set up.</div>`);
   }
 
+  // Being heard says the lock is in range, not that it is awake: a
+  // padlock keeps sending short dormant beacons while it sleeps.
   _renderPresence(lock) {
     const heard = this._heardNow(lock);
-    if (heard === null) return `<span class="chip muted">Not heard since Home Assistant started</span>`;
-    const via = `via ${esc(lock.heard.via)}, ${esc(lock.heard.rssi)} dBm`;
     if (lock.connected) return `<span class="chip ok">Connected</span>`;
-    if (heard <= AWAKE_NOW_S) return `<span class="chip ok" title="${via}">Awake, heard ${ago(heard)}</span>`;
-    return `<span class="chip ${heard > 20 ? "muted" : ""}" title="${via}">Asleep, last heard ${ago(heard)}</span>`;
+    if (heard === null) return `<span class="chip muted">Not heard since Home Assistant started</span>`;
+    const signal = `${esc(lock.heard.rssi)} dBm via ${esc(lock.heard.via.replace(/ \(.*\)$/, ""))}`;
+    if (heard <= 20) return `<span class="chip ok">In range, ${signal}</span>`;
+    return `<span class="chip muted">Not heard for ${ago(heard).replace(" ago", "")} (last ${signal})</span>`;
   }
 
   _renderLock(lock) {
