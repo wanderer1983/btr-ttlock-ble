@@ -412,7 +412,7 @@ class TtlockBlePanel extends HTMLElement {
       <style>${STYLE}</style>
       <div class="toolbar">
         <ha-menu-button></ha-menu-button>
-        <div class="title">TTLock</div>
+        <div class="title">TTLock BLE</div>
       </div>
       <div class="content" id="content"></div>
       <div id="dialog" hidden></div>`;

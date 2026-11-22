@@ -48,7 +48,7 @@ async def _async_register_panel(hass: HomeAssistant, version: str) -> None:
         hass,
         frontend_url_path=PANEL_URL_PATH,
         webcomponent_name=PANEL_ELEMENT,
-        sidebar_title="TTLock",
+        sidebar_title="TTLock BLE",
         sidebar_icon="mdi:lock-smart",
         # The version busts the browser's cache of the script on upgrade.
         module_url=f"{_STATIC_URL}/{PANEL_ELEMENT}.js?v={version}",
