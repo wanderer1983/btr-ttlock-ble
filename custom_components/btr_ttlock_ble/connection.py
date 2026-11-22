@@ -123,6 +123,7 @@ class TtlockBleConnection:
         self._on_records_seen = cursor.on_move
         self._broadcast_connected = False
         self._quality = TtlockBleConnectionQuality()
+        self._session_ended_at: float | None = None
 
     @property
     def key(self) -> VirtualKey:
@@ -133,6 +134,13 @@ class TtlockBleConnection:
     def quality(self) -> TtlockBleConnectionQuality:
         """Return how the recent session attempts with this lock went."""
         return self._quality
+
+    def in_or_just_after_session(self, seconds: float) -> bool:
+        """Report whether a session is open, or ended less than `seconds` ago."""
+        if self.is_connected:
+            return True
+        ended = self._session_ended_at
+        return ended is not None and time.monotonic() - ended < seconds
 
     @property
     def is_connected(self) -> bool:
@@ -622,6 +630,8 @@ class TtlockBleConnection:
         if connected == self._broadcast_connected:
             return
         self._broadcast_connected = connected
+        if not connected:
+            self._session_ended_at = time.monotonic()
         async_dispatcher_send(
             self._hass,
             connection_signal(self._key.lockMac),

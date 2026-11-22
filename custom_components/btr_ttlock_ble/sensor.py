@@ -102,6 +102,11 @@ async def async_setup_entry(
     )
 
 
+# How long after a BLE session an advertised battery rise is distrusted:
+# the hard-coded 100% some firmware advertises lands as the session ends.
+POST_SESSION_BATTERY_GRACE_SECONDS = 30.0
+
+
 class TtlockBleBatterySensor(TtlockBleEntity, SensorEntity):
     """Battery level reported by the lock — refreshed on poll and on every push."""
 
@@ -155,9 +160,11 @@ class TtlockBleBatterySensor(TtlockBleEntity, SensorEntity):
         """
         Copy `battery_level` from the coordinator snapshot, if known.
 
-        An advertised level is adopted only while nothing is known or when
-        it is not above the current one; a rise has to come from the lock's
-        own reply, a poll or a push.
+        An advertised level is adopted whether it falls or rises, so new
+        batteries show up from the broadcast alone, without a session.
+        The one exception is a rise during a session or just after one:
+        some firmware advertises a hard-coded 100% once as a session
+        ends, and that reading is not the battery.
         """
         state = self._lock_state
         if state is None:
@@ -170,9 +177,16 @@ class TtlockBleBatterySensor(TtlockBleEntity, SensorEntity):
             state.get("battery_advertised")
             and current is not None
             and battery > current
+            and self._session_is_recent()
         ):
             return
         self._attr_native_value = battery
+
+    def _session_is_recent(self) -> bool:
+        connection = self.coordinator.connections.get(self._key.lockMac)
+        return connection is not None and connection.in_or_just_after_session(
+            POST_SESSION_BATTERY_GRACE_SECONDS
+        )
 
 
 class TtlockBleClockDriftSensor(TtlockBleEntity, SensorEntity):

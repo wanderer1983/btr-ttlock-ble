@@ -189,12 +189,14 @@ def _publish_battery(entry, mac, battery, *, advertised):
     coordinator.async_set_updated_data({**(coordinator.data or {}), mac: snapshot})
 
 
-async def test_battery_sensor_ignores_an_advertised_rise(
+async def test_battery_sensor_ignores_an_advertised_rise_right_after_a_session(
     hass,
     setup_integration,
     sample_virtual_key,
+    mock_ttlock_connection,
 ) -> None:
     """The post-session advertisement carrying the hard-coded 100% must not stick."""
+    mock_ttlock_connection.in_or_just_after_session.return_value = True
     state = _battery_state(hass)
     assert state.state == "80"
     _publish_battery(
@@ -202,6 +204,22 @@ async def test_battery_sensor_ignores_an_advertised_rise(
     )
     await hass.async_block_till_done()
     assert hass.states.get(state.entity_id).state == "80"
+
+
+async def test_battery_sensor_follows_an_advertised_rise_between_sessions(
+    hass,
+    setup_integration,
+    sample_virtual_key,
+    mock_ttlock_connection,
+) -> None:
+    """New batteries show up from the broadcast alone, with no session needed."""
+    mock_ttlock_connection.in_or_just_after_session.return_value = False
+    state = _battery_state(hass)
+    assert state.state == "80"
+    _publish_battery(setup_integration, sample_virtual_key.lockMac, 97, advertised=True)
+    await hass.async_block_till_done()
+    assert hass.states.get(state.entity_id).state == "97"
+    mock_ttlock_connection.in_or_just_after_session.assert_called_with(30.0)
 
 
 async def test_battery_sensor_follows_an_advertised_drop(

@@ -1297,3 +1297,17 @@ def test_quality_signal_lowercases_mac() -> None:
         quality_signal("AA:BB:CC:DD:EE:FF")
         == "btr_ttlock_ble_quality_aa:bb:cc:dd:ee:ff"
     )
+
+
+async def test_session_window_covers_an_open_link_and_its_aftermath(
+    hass, sample_virtual_key, mock_ble_resolver, mock_ttlock_client
+) -> None:
+    conn = TtlockBleConnection(hass, sample_virtual_key)
+    assert not conn.in_or_just_after_session(30)
+    await conn.async_lock()
+    assert conn.in_or_just_after_session(30)
+    conn._broadcast_connection_state(connected=False)
+    mock_ttlock_client.is_connected = False
+    assert conn.in_or_just_after_session(30)
+    conn._session_ended_at = time.monotonic() - 31
+    assert not conn.in_or_just_after_session(30)
