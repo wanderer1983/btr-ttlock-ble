@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import partial
 from typing import TYPE_CHECKING, cast
 
+from homeassistant.components.bluetooth import async_rediscover_address
 from homeassistant.const import Platform
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
@@ -99,6 +100,8 @@ def _async_prune_stale_devices(
                 device.name or device.id,
             )
             device_registry.async_remove_device(device.id)
+            for mac in _device_macs(device):
+                async_rediscover_address(hass, mac.upper())
 
 
 async def async_remove_config_entry_device(
@@ -197,6 +200,22 @@ async def async_setup_entry(
         entry.async_on_unload(unsubscribe)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
+
+
+async def async_remove_entry(
+    hass: HomeAssistant,
+    entry: TtlockBleConfigEntry,
+) -> None:
+    """
+    Let Bluetooth discovery offer the entry's locks again.
+
+    HA raises a discovery card once per device per run; a lock whose
+    entry was just deleted, perhaps after a factory reset, would not be
+    offered for pairing until the next restart otherwise.
+    """
+    config = cast("TtlockBleConfigData", entry.data)
+    for key in config["keys"]:
+        async_rediscover_address(hass, key["lockMac"].upper())
 
 
 async def async_unload_entry(

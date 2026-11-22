@@ -41,6 +41,11 @@ if TYPE_CHECKING:
 # its commands with these two; the advertisement does not carry them.
 PAIRING_GROUP_ID = 1
 PAIRING_ORG_ID = 1
+# The scene a lock in setting mode is addressed with. kind3r's SDK, which
+# paired locks advertising other scenes this way, frames every V3 lock
+# with the generic header (5, 3, 1, 1, 1); a padlock advertising scene 8
+# left a pairing framed with its own scene unanswered.
+PAIRING_SCENE = 1
 
 STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}.pairings"
@@ -176,7 +181,14 @@ async def async_pair_lock(
         groupId=PAIRING_GROUP_ID,
         orgId=PAIRING_ORG_ID,
     )
-    client = TTLockClient.for_pairing(device, lock_version)
+    pairing_version = LockVersion(
+        protocolType=advertisement.protocol_type,
+        protocolVersion=advertisement.protocol_version,
+        scene=PAIRING_SCENE,
+        groupId=PAIRING_GROUP_ID,
+        orgId=PAIRING_ORG_ID,
+    )
+    client = TTLockClient.for_pairing(device, pairing_version)
     try:
         await client.connect()
         result = await client.initialize(dt_util.now().replace(tzinfo=None))

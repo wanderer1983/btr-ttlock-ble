@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 import probatio
 from homeassistant.components import websocket_api
+from homeassistant.components.bluetooth import async_rediscover_address
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
@@ -322,6 +323,9 @@ async def _ws_remove_lock(
                 msg["id"], "reset_failed", f"{target.name} was not reset: {error}"
             )
             return
+    if msg["reset"]:
+        # A reset lock comes back in setting mode: let discovery offer it.
+        async_rediscover_address(hass, target.mac.upper())
     if from_account:
         # The account still lists the lock, and its entry holds the other
         # locks too: the entry stays until the lock is deleted in the app

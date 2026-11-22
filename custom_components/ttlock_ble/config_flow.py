@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, cast
 
 import probatio
 from homeassistant import config_entries
+from homeassistant.components.bluetooth import async_last_service_info
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import AbortFlow
@@ -280,6 +281,7 @@ class TtlockBleFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         whatever provisioned the lock locally. So this is the same menu
         the manual entry point shows, with the lock already identified.
         """
+        self._refresh_discovered_advertisement()
         in_setting_mode = bool(
             self._discovered_advertisement
             and self._discovered_advertisement.is_setting_mode
@@ -421,8 +423,32 @@ class TtlockBleFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return result
 
     @callback
+    def _refresh_discovered_advertisement(self) -> None:
+        """
+        Re-read the discovered lock's latest broadcast.
+
+        A discovery card can be opened long after it was raised, or be
+        raised again from a broadcast HA already held - a lock that was
+        reset is silent until woken, and only its next broadcast says it
+        is in setting mode.
+        """
+        if self._discovery is None:
+            return
+        info = async_last_service_info(
+            self.hass, self._discovery.address, connectable=False
+        )
+        if info is None:
+            return
+        advertisement = decode_lock_advertisement(
+            self._discovery.address, info.manufacturer_data
+        )
+        if advertisement is not None:
+            self._discovered_advertisement = advertisement
+
+    @callback
     def _discovered_setting_mode_address(self) -> str | None:
         """Return the discovered lock's address when it is in setting mode."""
+        self._refresh_discovered_advertisement()
         if (
             self._discovery is None
             or self._discovered_advertisement is None

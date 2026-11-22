@@ -127,6 +127,8 @@ async def test_pair_lock_stores_the_keys_before_returning(
     store = await async_get_pairing_store(hass)
     assert store.get(MAC) == pairing
     pairing_client.disconnect.assert_awaited_once()
+    framed_with = pairing_client.for_pairing.call_args.args[1]
+    assert framed_with.scene == 1
     # A second attempt reuses the keys instead of pairing again.
     again = await async_pair_lock(hass, MAC, "Garage")
     assert again == pairing
