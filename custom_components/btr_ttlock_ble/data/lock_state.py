@@ -26,6 +26,10 @@ class TtlockBleLockState(TypedDict):
     # firmware hard-codes to 100%, so the sensor lets this source lower the
     # reading but never raise it.
     battery_advertised: NotRequired[bool]
+    # `time.monotonic()` when `battery_level` was last reported, by an
+    # advertisement or a reply. Kept so a value the lock stopped
+    # reporting can be shown with its age, and dropped once too old.
+    battery_observed_at: NotRequired[float | None]
     # `time.monotonic()` at the moment `locked` was read off the lock, not
     # when it was published. A poll reads the bolt the instant a command
     # returns and publishes it seconds later, so only the read time says

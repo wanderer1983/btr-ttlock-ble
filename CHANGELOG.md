@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+- A refresh that cannot reach a lock keeps its last battery and state instead of blanking them, and a lock heard too faintly is not dialled at all.
+- A battery reading nothing has refreshed for a day is dropped; the panel shows how old it is once over an hour.
+
 ## 1.0.1
 
 - A background read of a lock no proxy can reach no longer holds up Home Assistant's start-up.

@@ -1336,3 +1336,50 @@ async def test_a_lock_heard_well_enough_is_read(hass, setup_integration) -> None
         await hass.async_block_till_done(wait_background_tasks=True)
     connection = coordinator.connections[mac]
     connection.async_get_operation_log.assert_awaited()
+
+
+async def test_an_unreachable_lock_keeps_its_advertised_battery(
+    hass, setup_integration
+) -> None:
+    coordinator = setup_integration.runtime_data.coordinator
+    mac = next(iter(coordinator.connections))
+    coordinator.connections[mac].async_query_state.return_value = None
+    data = await coordinator._async_update_data()
+    assert data[mac]["battery_level"] == 80
+    assert data[mac]["locked"] is True
+
+
+async def test_a_battery_nobody_reported_for_a_day_is_dropped(
+    hass, setup_integration
+) -> None:
+    from custom_components.btr_ttlock_ble.coordinator import BATTERY_MAX_AGE_SECONDS
+
+    coordinator = setup_integration.runtime_data.coordinator
+    mac = next(iter(coordinator.connections))
+    snapshot = coordinator.data[mac]
+    snapshot["battery_observed_at"] -= BATTERY_MAX_AGE_SECONDS + 1
+    coordinator.connections[mac].async_query_state.return_value = None
+    data = await coordinator._async_update_data()
+    assert data[mac]["battery_level"] is None
+    assert data[mac]["locked"] is True
+
+
+async def test_a_faint_lock_is_not_polled(hass, setup_integration) -> None:
+    from unittest.mock import patch
+
+    from custom_components.btr_ttlock_ble.wake import TtlockBleHeard
+
+    coordinator = setup_integration.runtime_data.coordinator
+    mac = next(iter(coordinator.connections))
+    connection = coordinator.connections[mac]
+    connection.async_query_state.reset_mock()
+    faint = TtlockBleHeard(
+        seconds_ago=1, rssi=-96, source="aa", source_name="victronble"
+    )
+    with patch(
+        "custom_components.btr_ttlock_ble.coordinator.async_last_heard",
+        return_value=faint,
+    ):
+        data = await coordinator._async_update_data()
+    connection.async_query_state.assert_not_awaited()
+    assert data[mac]["battery_level"] == 80

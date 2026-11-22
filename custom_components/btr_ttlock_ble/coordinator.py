@@ -77,6 +77,9 @@ STATE_PROBE_COOLDOWN_SECONDS = 300.0
 # connects through it. A command the user sends still tries.
 UNATTENDED_MIN_RSSI = -90
 
+# A battery reading nothing has refreshed for this long is dropped.
+BATTERY_MAX_AGE_SECONDS = 24 * 3600.0
+
 # How long between comparisons of a lock's clock against local time. The
 # lock has no NTP and drifts by seconds a day, so checking more often
 # than this spends a BLE round trip to learn nothing.
@@ -254,6 +257,7 @@ class TtlockBleDataUpdateCoordinator(DataUpdateCoordinator["TtlockBleCoordinator
             "locked": locked,
             "battery_level": advertisement.battery,
             "battery_advertised": True,
+            "battery_observed_at": time.monotonic(),
             "observed_at": observed_at,
         }
         self.async_set_updated_data({**(self.data or {}), mac: snapshot})
@@ -457,29 +461,39 @@ class TtlockBleDataUpdateCoordinator(DataUpdateCoordinator["TtlockBleCoordinator
                 self._async_schedule_log_retry(mac)
 
     async def _async_update_data(self) -> TtlockBleCoordinatorData:
-        """Poll every connection once and return the aggregated state map."""
+        """
+        Poll every reachable connection once and return the aggregated state map.
+
+        A lock that could not be read keeps what was last known about it:
+        its advertisements keep reporting the battery, and a refresh asked
+        for on behalf of another lock must not blank it. A lock heard too
+        faintly to connect to is not dialled at all.
+        """
+        previous: TtlockBleCoordinatorData = dict(self.data or {})
         poll_tasks = {
             mac: self._async_poll(connection)
             for mac, connection in self._connections.items()
+            if not self._async_too_faint(mac, "poll it")
         }
         results = await asyncio.gather(*poll_tasks.values(), return_exceptions=True)
-        state: TtlockBleCoordinatorData = {}
+        state: TtlockBleCoordinatorData = {
+            mac: _without_stale_battery(previous.get(mac)) for mac in self._connections
+        }
         for mac, result in zip(poll_tasks, results, strict=True):
             if isinstance(result, BaseException):
                 LOGGER.warning("Failed to poll %s: %s", mac, result)
-                state[mac] = {"locked": None, "battery_level": None}
-            else:
+            elif result is not None:
                 state[mac] = result
         return state
 
     async def _async_poll(
         self,
         connection: TtlockBleConnection,
-    ) -> TtlockBleLockState:
-        """Query one lock through its persistent connection."""
+    ) -> TtlockBleLockState | None:
+        """Query one lock through its persistent connection; `None` if unreachable."""
         result = await connection.async_query_state()
         if result is None:
-            return {"locked": None, "battery_level": None}
+            return None
         observed_at = time.monotonic()
         raw_state, battery = result
         try:
@@ -503,6 +517,7 @@ class TtlockBleDataUpdateCoordinator(DataUpdateCoordinator["TtlockBleCoordinator
         return {
             "locked": _parse_lock_state(raw_state),
             "battery_level": battery,
+            "battery_observed_at": observed_at,
             "observed_at": observed_at,
         }
 
@@ -787,6 +802,24 @@ class TtlockBleDataUpdateCoordinator(DataUpdateCoordinator["TtlockBleCoordinator
             hw_version=description["hardware_version"] or UNDEFINED,
             sw_version=description["firmware_version"] or UNDEFINED,
         )
+
+
+def _without_stale_battery(
+    snapshot: TtlockBleLockState | None,
+) -> TtlockBleLockState:
+    """
+    Carry a lock's last snapshot over a poll that did not reach it.
+
+    Its battery goes once nothing has reported it for a day: the lock
+    re-advertises it every few seconds while in range, so a reading
+    that old means the lock has not been heard, not that it is full.
+    """
+    if not snapshot:
+        return {"locked": None, "battery_level": None}
+    seen = snapshot.get("battery_observed_at")
+    if seen is not None and time.monotonic() - seen > BATTERY_MAX_AGE_SECONDS:
+        return {**snapshot, "battery_level": None, "battery_observed_at": None}
+    return snapshot
 
 
 def _parse_lock_state(raw: int | None) -> bool | None:

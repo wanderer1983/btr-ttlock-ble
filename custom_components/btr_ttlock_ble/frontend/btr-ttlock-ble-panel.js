@@ -603,7 +603,7 @@ class TtlockBlePanel extends HTMLElement {
           <div class="chips">
             ${this._renderPresence(lock)}
             <span class="chip">${esc(state)}</span>
-            ${lock.battery != null ? `<span class="chip">Battery ${esc(lock.battery)}%</span>` : ""}
+            ${lock.battery != null ? `<span class="chip" title="${lock.battery_age != null ? `Reported ${ago(lock.battery_age)}` : ""}">Battery ${esc(lock.battery)}%${lock.battery_age > 3600 ? `, ${ago(lock.battery_age)}` : ""}</span>` : ""}
             ${lock.paired_locally ? `<span class="chip">Paired by Home Assistant</span>` : ""}
           </div>
         </header>

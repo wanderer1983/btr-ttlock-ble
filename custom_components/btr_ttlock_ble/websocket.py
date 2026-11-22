@@ -14,6 +14,7 @@ Every command is admin-only, like the panel itself.
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any
 
 import probatio
@@ -117,6 +118,9 @@ def _describe_lock(
         "admin": can_administer(key),
         "locked": state.get("locked"),
         "battery": state.get("battery_level"),
+        "battery_age": None
+        if (battery_seen := state.get("battery_observed_at")) is None
+        else round(time.monotonic() - battery_seen),
         "connected": connection.is_connected,
         "heard": None
         if heard is None
