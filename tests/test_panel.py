@@ -6,6 +6,8 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from homeassistant.components import frontend
+from homeassistant.const import EVENT_COMPONENT_LOADED
 from homeassistant.helpers import device_registry as dr
 
 from custom_components.ttlock_ble.connection import TtlockBleConnection
@@ -52,20 +54,28 @@ async def _ws(hass_ws_client, hass, **msg):
     return await ws.receive_json()
 
 
-async def test_panel_is_skipped_without_the_frontend(hass) -> None:
+async def test_panel_waits_for_the_frontend(hass) -> None:
     with patch("custom_components.ttlock_ble.panel.panel_custom") as panel_custom:
-        await async_setup_panel(hass, "1")
+        async_setup_panel(hass, "1")
+        await hass.async_block_till_done()
     panel_custom.async_register_panel.assert_not_called()
 
 
 async def test_panel_is_registered_for_admins_with_a_versioned_script(hass) -> None:
-    hass.config.components.add("frontend")
     hass.http = MagicMock(async_register_static_paths=AsyncMock())
     with patch(
         "custom_components.ttlock_ble.panel.panel_custom.async_register_panel",
         AsyncMock(),
     ) as register:
-        await async_setup_panel(hass, "9.9")
+        async_setup_panel(hass, "9.9")
+        hass.config.components.add("frontend")
+        hass.bus.async_fire(EVENT_COMPONENT_LOADED, {"component": "frontend"})
+        await hass.async_block_till_done()
+        # A second call (another entry's setup, a reload) adds nothing.
+        hass.data.setdefault(frontend.DATA_PANELS, {})[PANEL_URL_PATH] = object()
+        async_setup_panel(hass, "9.9")
+        await hass.async_block_till_done()
+    register.assert_awaited_once()
     kwargs = register.await_args.kwargs
     assert kwargs["frontend_url_path"] == PANEL_URL_PATH
     assert kwargs["require_admin"] is True

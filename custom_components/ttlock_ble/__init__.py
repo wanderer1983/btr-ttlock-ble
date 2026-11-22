@@ -62,7 +62,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:  # noqa:
     async_setup_services(hass)
     async_setup_websocket(hass)
     integration = await async_get_integration(hass, DOMAIN)
-    await async_setup_panel(hass, str(integration.version))
+    async_setup_panel(hass, str(integration.version))
     return True
 
 

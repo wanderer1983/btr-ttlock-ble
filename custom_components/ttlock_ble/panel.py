@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 
 from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.core import callback
+from homeassistant.setup import async_when_setup
 
 from .const import DOMAIN
 
@@ -19,15 +21,24 @@ _STATIC_URL = f"/{DOMAIN}_static"
 _FRONTEND_DIR = Path(__file__).parent / "frontend"
 
 
-async def async_setup_panel(hass: HomeAssistant, version: str) -> None:
+@callback
+def async_setup_panel(hass: HomeAssistant, version: str) -> None:
     """
-    Serve the panel's script and add the panel to the sidebar, once.
+    Add the panel to the sidebar once the frontend is up.
 
-    Skipped where the frontend is not loaded (a headless install, or a
-    test run): there is no sidebar to add it to.
+    This integration can finish setting up before the frontend does, and
+    a headless install or a test run never loads it at all; waiting for
+    it covers both.
     """
-    if "frontend" not in hass.config.components:
-        return
+
+    async def _register(hass: HomeAssistant, _component: str) -> None:
+        await _async_register_panel(hass, version)
+
+    async_when_setup(hass, "frontend", _register)
+
+
+async def _async_register_panel(hass: HomeAssistant, version: str) -> None:
+    """Serve the panel's script and add the panel to the sidebar, once."""
     if PANEL_URL_PATH in hass.data.get(frontend.DATA_PANELS, {}):
         return
     await hass.http.async_register_static_paths(
