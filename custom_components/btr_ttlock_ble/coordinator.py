@@ -35,6 +35,7 @@ from .data import TtlockBleKnownCredential
 from .feature_store import async_get_feature_store
 from .key_privileges import can_administer, may_hold
 from .sdk import LockFeature, LockState
+from .wake import async_last_heard
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -68,6 +69,13 @@ LOG_RETRY_COOLDOWN_SECONDS = 300.0
 # nothing has reported yet. Long enough that a lock which keeps refusing
 # is not connected to on every advertisement it sends.
 STATE_PROBE_COOLDOWN_SECONDS = 300.0
+
+# Below this, a session nobody asked for is not attempted. A lock heard
+# this faintly - at the far edge of the one proxy that hears it at all -
+# rarely holds a connection, and every attempt occupies one of the
+# proxy's few connection slots for up to a minute, starving whatever else
+# connects through it. A command the user sends still tries.
+UNATTENDED_MIN_RSSI = -90
 
 # How long between comparisons of a lock's clock against local time. The
 # lock has no NTP and drifts by seconds a day, so checking more often
@@ -274,13 +282,17 @@ class TtlockBleDataUpdateCoordinator(DataUpdateCoordinator["TtlockBleCoordinator
             return
         if mac not in self._connections or mac in self._state_probes:
             return
+        if self._async_too_faint(mac, "read its bolt position"):
+            return
         self._state_probes[mac] = async_call_later(
             self.hass,
             STATE_PROBE_COOLDOWN_SECONDS,
             partial(self._async_clear_state_probe, mac),
         )
         LOGGER.debug("No bolt position known for %s, reading it over BLE", mac)
-        self.config_entry.async_create_task(
+        # A background task: Home Assistant's start-up must not wait on a
+        # lock that may take minutes to answer, or never does.
+        self.config_entry.async_create_background_task(
             self.hass,
             self.async_request_refresh(),
             name=f"{DOMAIN}.state_probe.{mac}",
@@ -347,12 +359,33 @@ class TtlockBleDataUpdateCoordinator(DataUpdateCoordinator["TtlockBleCoordinator
         connection = self._connections.get(mac)
         if connection is None or mac in self._log_fetches or mac in self._log_retries:
             return
+        if self._async_too_faint(mac, "read its log"):
+            # The lock advertises the same bytes again, which HA does not
+            # forward twice, so only the timer brings us back to look.
+            self._async_schedule_log_retry(mac)
+            return
         self._log_fetches.add(mac)
-        self.config_entry.async_create_task(
+        self.config_entry.async_create_background_task(
             self.hass,
             self._async_fetch_operation_log(mac, connection),
             name=f"{DOMAIN}.advertised_operation_log.{mac}",
         )
+
+    @callback
+    def _async_too_faint(self, mac: str, purpose: str) -> bool:
+        """Report whether `mac` is heard too faintly for a session nobody asked for."""
+        heard = async_last_heard(self.hass, mac)
+        if heard is None or heard.rssi >= UNATTENDED_MIN_RSSI:
+            return False
+        LOGGER.debug(
+            "Not connecting to %s to %s: heard at %d dBm via %s, below %d dBm",
+            mac,
+            purpose,
+            heard.rssi,
+            heard.source_name,
+            UNATTENDED_MIN_RSSI,
+        )
+        return True
 
     @callback
     def _async_schedule_log_retry(self, mac: str) -> None:

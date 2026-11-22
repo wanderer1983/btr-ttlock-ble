@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+- A background read of a lock no proxy can reach no longer holds up Home Assistant's start-up.
+- Below -90 dBm, a session nobody asked for is not attempted, so a lock at the edge of range no longer occupies a proxy's connection slots. Commands you send still try.
+
 ## 1.0.0 - BTR TTLock BLE
 
 First release of this fork of [ha-ttlock-ble](https://github.com/roquerodrigo/ha-ttlock-ble) 3.13, under its own domain, `btr_ttlock_ble`.

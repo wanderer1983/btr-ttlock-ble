@@ -165,6 +165,9 @@ def _task_entry(hass) -> MagicMock:
     entry.async_create_task = lambda _hass, coro, name=None: hass.async_create_task(  # noqa: ARG005
         coro,
     )
+    entry.async_create_background_task = lambda _hass, coro, name: (
+        hass.async_create_background_task(coro, name)
+    )
     return entry
 
 
@@ -269,7 +272,7 @@ async def test_advertised_records_trigger_a_log_read(hass) -> None:
     coordinator.async_apply_advertisement(
         MAC, _advertisement(unlocked=False, records=True)
     )
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     conn.async_get_operation_log.assert_awaited_once()
 
 
@@ -281,7 +284,7 @@ async def test_advertised_records_read_once_per_cooldown(hass) -> None:
         coordinator.async_apply_advertisement(
             MAC, _advertisement(unlocked=False, records=True)
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     conn.async_get_operation_log.assert_awaited_once()
 
 
@@ -299,12 +302,12 @@ async def test_unreachable_lock_is_retried_after_the_cooldown(hass) -> None:
     coordinator.async_apply_advertisement(
         MAC, _advertisement(unlocked=False, records=True)
     )
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     async_fire_time_changed(
         hass,
         dt_util.utcnow() + timedelta(seconds=LOG_RETRY_COOLDOWN_SECONDS + 1),
     )
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert conn.async_get_operation_log.await_count == 2
 
 
@@ -316,7 +319,7 @@ async def test_flag_going_down_releases_the_lock_for_the_next_record(hass) -> No
         coordinator.async_apply_advertisement(
             MAC, _advertisement(unlocked=False, records=records)
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     assert conn.async_get_operation_log.await_count == 2
 
 
@@ -324,7 +327,7 @@ async def test_advertisement_without_records_reads_nothing(hass) -> None:
     conn = _mock_connection()
     coordinator = _log_coordinator(hass, conn)
     coordinator.async_apply_advertisement(MAC, _advertisement(unlocked=True))
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     conn.async_get_operation_log.assert_not_awaited()
 
 
@@ -336,7 +339,7 @@ async def test_dormant_advertisement_still_reads_the_log(hass) -> None:
         coordinator.async_apply_advertisement(
             MAC, _advertisement(unlocked=False, dormant=True, records=True)
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     conn.async_get_operation_log.assert_awaited_once()
 
 
@@ -347,7 +350,7 @@ async def test_advertised_log_read_failure_is_contained(hass) -> None:
     coordinator.async_apply_advertisement(
         MAC, _advertisement(unlocked=False, records=True)
     )
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     conn.async_get_operation_log.assert_awaited_once()
 
 
@@ -357,7 +360,7 @@ async def test_advertised_records_for_an_unknown_lock_are_ignored(hass) -> None:
     coordinator.async_apply_advertisement(
         "11:22:33:44:55:66", _advertisement(unlocked=False, records=True)
     )
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
 
 async def test_a_pending_read_is_retried_on_a_timer(hass) -> None:
@@ -377,14 +380,14 @@ async def test_a_pending_read_is_retried_on_a_timer(hass) -> None:
     coordinator.async_apply_advertisement(
         MAC, _advertisement(unlocked=False, records=True)
     )
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert conn.async_get_operation_log.await_count == 1
 
     async_fire_time_changed(
         hass,
         dt_util.utcnow() + timedelta(seconds=LOG_RETRY_COOLDOWN_SECONDS + 1),
     )
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert conn.async_get_operation_log.await_count == 2
 
 
@@ -394,9 +397,9 @@ async def test_the_retry_stops_once_the_flag_clears(hass) -> None:
     coordinator.async_apply_advertisement(
         MAC, _advertisement(unlocked=False, records=True)
     )
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     coordinator.async_apply_advertisement(MAC, _advertisement(unlocked=False))
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     from homeassistant.util import dt as dt_util
     from pytest_homeassistant_custom_component.common import async_fire_time_changed
@@ -407,7 +410,7 @@ async def test_the_retry_stops_once_the_flag_clears(hass) -> None:
         hass,
         dt_util.utcnow() + timedelta(seconds=LOG_RETRY_COOLDOWN_SECONDS + 1),
     )
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert conn.async_get_operation_log.await_count == 1
 
 
@@ -419,7 +422,7 @@ async def test_a_dormant_sighting_reads_the_bolt_position_when_unknown(hass) -> 
         coordinator.async_apply_advertisement(
             MAC, _advertisement(unlocked=False, dormant=True)
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     refresh.assert_called_once()
 
 
@@ -429,7 +432,7 @@ async def test_an_awake_sighting_reads_nothing(hass) -> None:
     coordinator = _log_coordinator(hass, conn)
     with patch.object(coordinator, "async_request_refresh") as refresh:
         coordinator.async_apply_advertisement(MAC, _advertisement(unlocked=False))
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     refresh.assert_not_called()
 
 
@@ -441,7 +444,7 @@ async def test_the_read_is_not_repeated_on_every_advertisement(hass) -> None:
             coordinator.async_apply_advertisement(
                 MAC, _advertisement(unlocked=False, dormant=True)
             )
-            await hass.async_block_till_done()
+            await hass.async_block_till_done(wait_background_tasks=True)
     refresh.assert_called_once()
 
 
@@ -461,16 +464,16 @@ async def test_the_read_is_tried_again_after_the_cooldown(hass) -> None:
         coordinator.async_apply_advertisement(
             MAC, _advertisement(unlocked=False, dormant=True)
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
         async_fire_time_changed(
             hass,
             dt_util.utcnow() + timedelta(seconds=STATE_PROBE_COOLDOWN_SECONDS + 1),
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
         coordinator.async_apply_advertisement(
             MAC, _advertisement(unlocked=False, dormant=True)
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     assert refresh.call_count == 2
 
 
@@ -479,12 +482,12 @@ async def test_a_known_position_stops_the_reads(hass) -> None:
     conn = _mock_connection()
     coordinator = _log_coordinator(hass, conn)
     coordinator.async_apply_advertisement(MAC, _advertisement(unlocked=True))
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     with patch.object(coordinator, "async_request_refresh") as refresh:
         coordinator.async_apply_advertisement(
             MAC, _advertisement(unlocked=False, dormant=True)
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     refresh.assert_not_called()
 
 
@@ -493,7 +496,7 @@ async def test_a_sighting_of_an_unknown_lock_reads_nothing(hass) -> None:
     coordinator.config_entry = _task_entry(hass)
     with patch.object(coordinator, "async_request_refresh") as refresh:
         coordinator.async_note_lock_seen("11:22:33:44:55:66")
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     refresh.assert_not_called()
 
 
@@ -505,11 +508,11 @@ async def test_learning_the_position_disarms_the_pending_read(hass) -> None:
         coordinator.async_apply_advertisement(
             MAC, _advertisement(unlocked=False, dormant=True)
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     assert MAC in coordinator._state_probes
 
     coordinator.async_apply_advertisement(MAC, _advertisement(unlocked=True))
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert MAC not in coordinator._state_probes
 
 
@@ -664,7 +667,7 @@ async def test_shutdown_cancels_the_pending_log_retry(hass) -> None:
         coordinator.async_apply_advertisement(
             MAC, _advertisement(unlocked=False, records=True)
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     assert MAC in coordinator._log_retries
 
     await coordinator.async_shutdown()
@@ -679,7 +682,7 @@ async def test_shutdown_cancels_the_pending_state_probe(hass) -> None:
         coordinator.async_apply_advertisement(
             MAC, _advertisement(unlocked=False, dormant=True)
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     assert MAC in coordinator._state_probes
 
     await coordinator.async_shutdown()
@@ -701,7 +704,7 @@ async def test_a_cancelled_retry_never_fires_again(hass) -> None:
         coordinator.async_apply_advertisement(
             MAC, _advertisement(unlocked=False, records=True)
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     await coordinator.async_shutdown()
     conn.async_get_operation_log.reset_mock()
 
@@ -709,7 +712,7 @@ async def test_a_cancelled_retry_never_fires_again(hass) -> None:
         hass,
         dt_util.utcnow() + timedelta(seconds=LOG_RETRY_COOLDOWN_SECONDS + 1),
     )
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     conn.async_get_operation_log.assert_not_awaited()
 
@@ -1294,3 +1297,42 @@ async def test_features_are_not_asked_when_the_key_has_them(
     mock_ttlock_connection.async_get_features = AsyncMock()
     await coordinator._async_learn_features(mock_ttlock_connection)
     mock_ttlock_connection.async_get_features.assert_not_awaited()
+
+
+async def test_a_faint_lock_gets_no_unattended_session(hass, setup_integration) -> None:
+    from unittest.mock import patch
+
+    from custom_components.btr_ttlock_ble.wake import TtlockBleHeard
+
+    coordinator = setup_integration.runtime_data.coordinator
+    mac = next(iter(coordinator.connections))
+    faint = TtlockBleHeard(
+        seconds_ago=1, rssi=-97, source="aa", source_name="victronble"
+    )
+    with patch(
+        "custom_components.btr_ttlock_ble.coordinator.async_last_heard",
+        return_value=faint,
+    ):
+        coordinator._async_read_log_if_due(mac)
+        assert mac not in coordinator._log_fetches
+        # Looked at again on the timer, since HA forwards no repeat advertisement.
+        assert mac in coordinator._log_retries
+        coordinator._async_cancel_log_retry(mac)
+
+
+async def test_a_lock_heard_well_enough_is_read(hass, setup_integration) -> None:
+    from unittest.mock import patch
+
+    from custom_components.btr_ttlock_ble.wake import TtlockBleHeard
+
+    coordinator = setup_integration.runtime_data.coordinator
+    mac = next(iter(coordinator.connections))
+    heard = TtlockBleHeard(seconds_ago=1, rssi=-80, source="aa", source_name="proxy1")
+    with patch(
+        "custom_components.btr_ttlock_ble.coordinator.async_last_heard",
+        return_value=heard,
+    ):
+        coordinator._async_read_log_if_due(mac)
+        await hass.async_block_till_done(wait_background_tasks=True)
+    connection = coordinator.connections[mac]
+    connection.async_get_operation_log.assert_awaited()
