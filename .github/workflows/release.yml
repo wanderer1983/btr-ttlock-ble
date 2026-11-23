@@ -11,7 +11,7 @@ jobs:
   zip:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check the manifest version matches the tag
         run: |
           version=$(jq -r .version custom_components/btr_ttlock_ble/manifest.json)
